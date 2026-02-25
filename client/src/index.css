@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@600&family=Mulish:wght@600&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #1E3A8A;
+  --color-primary-dark: #172554;
+  --color-primary-light: #3B82F6;
+
+  --color-accent: #F97316;
+  --color-accent-hover: #EA580C;
+
+  --color-bg-main: #F1F5F9;
+  --color-bg-card: #FFFFFF;
+  --color-bg-light: #E2E8F0;
+
+  --color-text-main: #1E293B;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94A3B8;
+
+  --color-success: #16A34A;
+  --color-warning: #FACC15;
+  --color-error: #DC2626;
+
+  --font-heading: 'Raleway', sans-serif;
+  --font-body: 'Mulish', sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+  font-weight: 600;
+  line-height: 1.6;
+  background-color: var(--color-bg-main);
+  color: var(--color-text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 2.5rem;
+}
+
+h2 {
+  font-size: 2rem;
+}
+
+h3 {
+  font-size: 1.75rem;
+}
