@@ -1,7 +1,7 @@
 import React from "react";
 
-const AvatarSelector = ({ selectedAvatar, setSelectedAvatar }) => {
-    const avatars = [
+const AvatarSelector = ({ selectedAvatar, setSelectedAvatar, role }) => {
+    const defaultAvatars = [
         "src/assets/images/Avatars/avatar1.png",
         "src/assets/images/Avatars/avatar2.png",
         "src/assets/images/Avatars/avatar3.png",
@@ -32,8 +32,21 @@ const AvatarSelector = ({ selectedAvatar, setSelectedAvatar }) => {
         "src/assets/images/Avatars/avatar28.png",
         "src/assets/images/Avatars/avatar29.png",
         "src/assets/images/Avatars/avatar30.png",
-
     ];
+
+    const expertAvatars = [
+        "src/assets/images/Avatars/expert1.png",
+        "src/assets/images/Avatars/expert2.png",
+        "src/assets/images/Avatars/expert3.png",
+        "src/assets/images/Avatars/expert4.png",
+        "src/assets/images/Avatars/expert5.png",
+        "src/assets/images/Avatars/expert6.png",
+        "src/assets/images/Avatars/expert7.png",
+        "src/assets/images/Avatars/expert8.png",
+        "src/assets/images/Avatars/expert9.png",
+    ];
+
+    const avatars = role === 'expert' ? expertAvatars : defaultAvatars;
 
     return (
         <div className="mb-6">

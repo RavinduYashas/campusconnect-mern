@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const OTP = require('../models/OTP');
-const { sendVerificationEmail } = require('../utils/emailUtils');
+const { sendVerificationEmail, sendWelcomeEmail } = require('../utils/emailUtils');
 
 
 // Generate JWT
@@ -90,6 +90,7 @@ const loginUser = async (req, res) => {
                 email: user.email,
                 role: user.role,
                 avatar: user.avatar,
+                mustChangePassword: user.mustChangePassword,
                 token: generateToken(user.id),
             });
         } else {
@@ -138,8 +139,20 @@ const updateProfile = async (req, res) => {
 
         if (user) {
             user.name = req.body.name || user.name;
-            user.avatar = req.body.avatar || user.avatar;
             user.bio = req.body.bio || user.bio;
+
+            // Enforce expert avatar choices (expert1.png to expert9.png)
+            if (user.role === 'expert') {
+                const expertAvatarRegex = /^src\/assets\/images\/Avatars\/expert[1-9]\.png$/;
+                if (req.body.avatar && expertAvatarRegex.test(req.body.avatar)) {
+                    user.avatar = req.body.avatar;
+                } else if (!user.avatar || !expertAvatarRegex.test(user.avatar)) {
+                    // Default to expert1.png if current is invalid or not provided
+                    user.avatar = 'src/assets/images/Avatars/expert1.png';
+                }
+            } else {
+                user.avatar = req.body.avatar || user.avatar;
+            }
 
             if (user.role === 'student') {
                 user.academicInfo = {
@@ -149,11 +162,20 @@ const updateProfile = async (req, res) => {
             }
 
             if (user.role === 'expert') {
-                user.professionalInfo = {
-                    company: req.body.company || user.professionalInfo?.company,
-                    jobTitle: req.body.jobTitle || user.professionalInfo?.jobTitle,
-                    experienceYears: req.body.experienceYears || user.professionalInfo?.experienceYears
-                };
+                if (Array.isArray(req.body.professionalInfo)) {
+                    user.professionalInfo = req.body.professionalInfo.map(info => ({
+                        company: info.company || '',
+                        jobTitle: info.jobTitle || '',
+                        experienceYears: Math.max(0, parseInt(info.experienceYears) || 0)
+                    }));
+                } else {
+                    // Fallback for single object if sent
+                    user.professionalInfo = [{
+                        company: req.body.company || '',
+                        jobTitle: req.body.jobTitle || '',
+                        experienceYears: Math.max(0, parseInt(req.body.experienceYears) || 0)
+                    }];
+                }
             }
 
             user.profileCompleted = true;
@@ -187,6 +209,46 @@ const getAllUsers = async (req, res) => {
     try {
         const users = await User.find({}).select('-password');
         res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Update user (Admin only)
+// @route   PUT /api/users/:id
+// @access  Private/Admin
+const updateUser = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (user) {
+            user.name = req.body.name || user.name;
+            user.field = req.body.field || user.field;
+            user.role = req.body.role || user.role;
+
+            if (req.body.academicInfo && user.role === 'student') {
+                user.academicInfo = {
+                    year: req.body.academicInfo.year || user.academicInfo?.year,
+                    semester: req.body.academicInfo.semester || user.academicInfo?.semester
+                };
+            }
+
+            if (req.body.realEmail && user.role === 'expert') {
+                user.realEmail = req.body.realEmail;
+            }
+
+            const updatedUser = await user.save();
+            res.json({
+                _id: updatedUser._id,
+                name: updatedUser.name,
+                email: updatedUser.email,
+                realEmail: updatedUser.realEmail,
+                role: updatedUser.role,
+                field: updatedUser.field,
+                academicInfo: updatedUser.academicInfo
+            });
+        } else {
+            res.status(404).json({ message: 'User not found' });
+        }
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -229,6 +291,98 @@ const deleteUser = async (req, res) => {
             res.json({ message: 'User removed' });
         } else {
             res.status(404).json({ message: 'User not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Admin create user (Manual add Expert/Student)
+// @route   POST /api/users/admin-create
+// @access  Private/Admin
+const getExpertCount = async (req, res) => {
+    console.log('--- GET expert-count hit ---');
+    try {
+        const count = await User.countDocuments({ role: /expert/i });
+        console.log('--- Current expert count (case-insensitive) ---:', count);
+        res.status(200).json({ count });
+    } catch (error) {
+        console.error('--- Error in getExpertCount ---:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const adminCreateUser = async (req, res) => {
+    const { name, email: rawEmail, realEmail: rawRealEmail, password, role, field, year, semester } = req.body;
+    let emailToUse = rawEmail?.trim()?.toLowerCase();
+    const realEmail = rawRealEmail?.trim()?.toLowerCase();
+
+    try {
+        // If expert, generate system email
+        if (role === 'expert') {
+            if (!realEmail) {
+                return res.status(400).json({ message: 'Real personal email is required for experts' });
+            }
+
+            // Check for existing expert with this real personal email
+            const realEmailExists = await User.findOne({ realEmail, role: 'expert' });
+            if (realEmailExists) {
+                return res.status(400).json({ message: 'An expert with this personal email already exists' });
+            }
+
+            const expertCount = await User.countDocuments({ role: /expert/i });
+            const expertId = (expertCount + 1).toString().padStart(3, '0');
+            emailToUse = `ept${expertId}@sliitplatform.com`;
+        } else {
+            if (!emailToUse) {
+                return res.status(400).json({ message: 'Email is required' });
+            }
+        }
+
+        // Final safety check for emailToUse
+        const finalEmail = emailToUse || (role === 'expert' ? `ept_temp_${Date.now()}@sliitplatform.com` : null);
+
+        if (!finalEmail) {
+            return res.status(400).json({ message: 'Could not resolve a valid email for this account' });
+        }
+
+        const userExists = await User.findOne({ email: finalEmail });
+        if (userExists) {
+            return res.status(400).json({ message: 'User already exists' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const user = await User.create({
+            name,
+            email: finalEmail,
+            realEmail: role === 'expert' ? realEmail : undefined,
+            password: hashedPassword,
+            role: role || "student",
+            field: field || "General",
+            avatar: role === 'expert' ? 'src/assets/images/Avatars/expert1.png' : "/avatars/avatar1.png",
+            academicInfo: role === 'student' ? { year, semester } : undefined,
+            isVerified: true,
+            profileCompleted: role === 'expert' ? false : true,
+            mustChangePassword: role === 'expert' ? true : false
+        });
+
+        if (user) {
+            // Send Welcome Email
+            const recipientEmail = role === 'expert' ? realEmail : finalEmail;
+            await sendWelcomeEmail(recipientEmail, name, password, user.role, finalEmail);
+
+            res.status(201).json({
+                _id: user.id,
+                name: user.name,
+                email: user.email,
+                realEmail: user.realEmail,
+                role: user.role,
+                academicInfo: user.academicInfo
+            });
+        } else {
+            res.status(400).json({ message: 'Invalid user data' });
         }
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -327,7 +481,10 @@ module.exports = {
     updateProfile,
     getAllUsers,
     updateUserRole,
+    updateUser,
     deleteUser,
     sendOTP,
     verifyOTP,
+    adminCreateUser,
+    getExpertCount,
 };

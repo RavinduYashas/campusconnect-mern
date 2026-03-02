@@ -11,6 +11,43 @@ const Profiles = () => {
     const [updating, setUpdating] = useState(false);
     const [message, setMessage] = useState('');
     const [isEditMode, setIsEditMode] = useState(false);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    setLoading(false);
+                    return;
+                }
+                const res = await axios.get('/api/users/me', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setUser(res.data);
+                localStorage.setItem('user', JSON.stringify(res.data));
+
+                // Update avatar state too
+                setAvatar(res.data.avatar || '/avatars/avatar1.png');
+
+                // Update formData
+                setFormData({
+                    name: res.data.name || '',
+                    bio: res.data.bio || '',
+                    year: res.data.academicInfo?.year || '',
+                    semester: res.data.academicInfo?.semester || '',
+                    professionalInfo: (res.data.role === 'expert' && Array.isArray(res.data.professionalInfo))
+                        ? res.data.professionalInfo
+                        : [{ company: '', jobTitle: '', experienceYears: '' }],
+                });
+            } catch (err) {
+                console.error("Failed to fetch user data:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchUserData();
+    }, []);
 
     // Profile form state
     const [formData, setFormData] = useState({
@@ -18,9 +55,11 @@ const Profiles = () => {
         bio: user?.bio || '',
         year: user?.academicInfo?.year || '',
         semester: user?.academicInfo?.semester || '',
-        company: user?.professionalInfo?.company || '',
-        jobTitle: user?.professionalInfo?.jobTitle || '',
-        experienceYears: user?.professionalInfo?.experienceYears || '',
+        professionalInfo: (user?.role === 'expert' && Array.isArray(user?.professionalInfo))
+            ? user.professionalInfo
+            : (user?.role === 'expert' && user?.professionalInfo && !Array.isArray(user?.professionalInfo))
+                ? [user.professionalInfo] // Wrap old object in array
+                : [{ company: '', jobTitle: '', experienceYears: '' }],
     });
 
     const handleLogout = () => {
@@ -31,6 +70,28 @@ const Profiles = () => {
 
     const handleInputChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleProfessionalInfoChange = (index, e) => {
+        const { name, value } = e.target;
+        const updatedProfessionalInfo = [...formData.professionalInfo];
+        updatedProfessionalInfo[index] = {
+            ...updatedProfessionalInfo[index],
+            [name]: name === 'experienceYears' ? (parseInt(value) || 0) : value
+        };
+        setFormData({ ...formData, professionalInfo: updatedProfessionalInfo });
+    };
+
+    const addProfessionalInfo = () => {
+        setFormData({
+            ...formData,
+            professionalInfo: [...formData.professionalInfo, { company: '', jobTitle: '', experienceYears: '' }]
+        });
+    };
+
+    const removeProfessionalInfo = (index) => {
+        const updatedProfessionalInfo = formData.professionalInfo.filter((_, i) => i !== index);
+        setFormData({ ...formData, professionalInfo: updatedProfessionalInfo });
     };
 
     const onUpdateProfile = async (e) => {
@@ -62,6 +123,7 @@ const Profiles = () => {
         }
     };
 
+    if (loading) return <div className="text-center mt-10">Loading profile...</div>;
     if (!user) return <div className="text-center mt-10">Please login to view your profile.</div>;
 
     return (
@@ -93,7 +155,9 @@ const Profiles = () => {
                     <div className="relative -top-12 flex flex-col items-center sm:items-start sm:flex-row gap-6">
                         <div className="relative group">
                             <img
-                                src={user.role === 'admin' ? '/src/assets/images/avatars/admin.png' : (isEditMode ? avatar : user.avatar)}
+                                src={user.role === 'admin'
+                                    ? '/src/assets/images/avatars/admin.png'
+                                    : (isEditMode ? avatar : user.avatar)}
                                 alt="profile"
                                 className={`w-32 h-32 rounded-3xl border-4 shadow-xl object-cover bg-white ${user.role === 'admin' ? 'border-accent' : 'border-white'
                                     }`}
@@ -144,9 +208,13 @@ const Profiles = () => {
                                     <div>
                                         <h2 className="text-xl font-bold text-text-main mb-6 flex items-center gap-2">
                                             <span className="w-2 h-8 bg-primary rounded-full"></span>
-                                            Customize Your Identity
+                                            {user.role === 'expert' ? 'Choose Professional Avatar' : 'Customize Your Identity'}
                                         </h2>
-                                        <AvatarSelector selectedAvatar={avatar} setSelectedAvatar={setAvatar} />
+                                        <AvatarSelector
+                                            selectedAvatar={avatar}
+                                            setSelectedAvatar={setAvatar}
+                                            role={user.role}
+                                        />
                                     </div>
                                 ) : (
                                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
@@ -236,41 +304,72 @@ const Profiles = () => {
                                                 </div>
                                             </>
                                         ) : (
-                                            <>
-                                                <div>
-                                                    <label className="block text-sm font-bold text-text-secondary mb-2">Company</label>
-                                                    <input
-                                                        type="text"
-                                                        name="company"
-                                                        value={formData.company}
-                                                        onChange={handleInputChange}
-                                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                                        placeholder="Where do you work?"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-bold text-text-secondary mb-2">Job Title</label>
-                                                    <input
-                                                        type="text"
-                                                        name="jobTitle"
-                                                        value={formData.jobTitle}
-                                                        onChange={handleInputChange}
-                                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                                        placeholder="What's your role?"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-bold text-text-secondary mb-2">Experience (Years)</label>
-                                                    <input
-                                                        type="number"
-                                                        name="experienceYears"
-                                                        value={formData.experienceYears}
-                                                        onChange={handleInputChange}
-                                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                                                        placeholder="How many years?"
-                                                    />
-                                                </div>
-                                            </>
+                                            <div className="space-y-6">
+                                                {formData.professionalInfo.map((info, index) => (
+                                                    <div key={index} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 relative group">
+                                                        <div className="flex justify-between items-center mb-4">
+                                                            <h4 className="text-sm font-black text-primary uppercase tracking-widest">Entry #{index + 1}</h4>
+                                                            {formData.professionalInfo.length > 1 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => removeProfessionalInfo(index)}
+                                                                    className="text-error hover:text-red-700 p-1 rounded-lg hover:bg-red-50 transition-colors"
+                                                                >
+                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                    </svg>
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <div className="space-y-4">
+                                                            <div>
+                                                                <label className="block text-sm font-bold text-text-secondary mb-2">Company</label>
+                                                                <input
+                                                                    type="text"
+                                                                    name="company"
+                                                                    value={info.company}
+                                                                    onChange={(e) => handleProfessionalInfoChange(index, e)}
+                                                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                                                    placeholder="Where do you work?"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="block text-sm font-bold text-text-secondary mb-2">Job Title</label>
+                                                                <input
+                                                                    type="text"
+                                                                    name="jobTitle"
+                                                                    value={info.jobTitle}
+                                                                    onChange={(e) => handleProfessionalInfoChange(index, e)}
+                                                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                                                    placeholder="What's your role?"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="block text-sm font-bold text-text-secondary mb-2">Experience (Years)</label>
+                                                                <input
+                                                                    type="number"
+                                                                    name="experienceYears"
+                                                                    min="0"
+                                                                    value={info.experienceYears}
+                                                                    onChange={(e) => handleProfessionalInfoChange(index, e)}
+                                                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                                                    placeholder="How many years?"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                <button
+                                                    type="button"
+                                                    onClick={addProfessionalInfo}
+                                                    className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-text-secondary font-bold hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                                                    </svg>
+                                                    Add Professional Experience
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -336,20 +435,34 @@ const Profiles = () => {
                                                         </div>
                                                     </>
                                                 ) : (
-                                                    <>
-                                                        <div className="flex justify-between">
-                                                            <span className="text-text-secondary font-medium">Company</span>
-                                                            <span className="text-text-main font-bold">{user.professionalInfo?.company || '-'}</span>
-                                                        </div>
-                                                        <div className="flex justify-between">
-                                                            <span className="text-text-secondary font-medium">Job Title</span>
-                                                            <span className="text-text-main font-bold">{user.professionalInfo?.jobTitle || '-'}</span>
-                                                        </div>
-                                                        <div className="flex justify-between">
-                                                            <span className="text-text-secondary font-medium">Experience</span>
-                                                            <span className="text-text-main font-bold">{user.professionalInfo?.experienceYears || '0'} Years</span>
-                                                        </div>
-                                                    </>
+                                                    <div className="space-y-4">
+                                                        {Array.isArray(user.professionalInfo) ? (
+                                                            user.professionalInfo.map((info, idx) => (
+                                                                <div key={idx} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                                                    <div className="flex justify-between items-start mb-2">
+                                                                        <span className="text-xs font-black text-primary uppercase tracking-widest italic">Experience #{idx + 1}</span>
+                                                                        <span className="text-[10px] font-bold bg-blue-50 text-primary px-2 py-0.5 rounded-full">{info.experienceYears} Years</span>
+                                                                    </div>
+                                                                    <h4 className="font-bold text-text-main">{info.jobTitle || 'No Title'}</h4>
+                                                                    <p className="text-sm text-text-secondary font-medium">{info.company || 'Private'}</p>
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            user.professionalInfo && (
+                                                                <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                                                                    <div className="flex justify-between items-start mb-2">
+                                                                        <span className="text-xs font-black text-primary uppercase tracking-widest italic">Experience</span>
+                                                                        <span className="text-[10px] font-bold bg-blue-50 text-primary px-2 py-0.5 rounded-full">{user.professionalInfo.experienceYears} Years</span>
+                                                                    </div>
+                                                                    <h4 className="font-bold text-text-main">{user.professionalInfo.jobTitle || 'No Title'}</h4>
+                                                                    <p className="text-sm text-text-secondary font-medium">{user.professionalInfo.company || 'Private'}</p>
+                                                                </div>
+                                                            )
+                                                        )}
+                                                        {(!user.professionalInfo || (Array.isArray(user.professionalInfo) && user.professionalInfo.length === 0)) && (
+                                                            <p className="text-xs text-text-secondary italic text-center py-4">No professional experience listed</p>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>

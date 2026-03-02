@@ -8,11 +8,18 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: true,
+    required: false,
     unique: true,
     trim: true,
     lowercase: true,
-    match: /@(my\.sliit\.lk|sliitplatform\.com)$/
+    // match: /@(my\.sliit\.lk|sliitplatform\.com)$/ // Validated in controller per role
+  },
+  // Expert's personal email (only for sending credentials)
+  realEmail: {
+    type: String,
+    required: function () { return this.role === "expert"; },
+    trim: true,
+    lowercase: true
   },
   password: {
     type: String,
@@ -35,15 +42,26 @@ const userSchema = new mongoose.Schema({
     year: Number,
     semester: Number
   },
-  professionalInfo: {
+  professionalInfo: [{
     company: String,
     jobTitle: String,
-    experienceYears: Number
-  },
+    experienceYears: {
+      type: Number,
+      min: 0,
+      default: 0
+    }
+  }],
   bio: String,
   profileCompleted: {
     type: Boolean,
     default: false
+  },
+  // ===== Security / Login =====
+  mustChangePassword: {
+    type: Boolean,
+    default: function () {
+      return this.role === "expert"; // force change for newly created experts
+    }
   }
 }, {
   timestamps: true
