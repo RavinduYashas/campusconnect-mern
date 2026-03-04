@@ -5,9 +5,10 @@ import './Clubs.css';
 const sampleFeaturesLeft = [
     'Explore available clubs and societies & Apply / Join for them.',
     'View event schedules and upcoming activities of clubs',
-    'Create new clubs (with admin approval)',
+    'Create new clubs (with admin approval) and manage existing ones',
     'Manage events if they are executives or team leaders',
 ];
+
 
 const sampleFeaturesRight = [
     'Create / update organization profiles',
