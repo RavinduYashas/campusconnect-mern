@@ -1,0 +1,20 @@
+.sports-page { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+
+.sports-hero {
+  background: linear-gradient(180deg, rgba(255,249,241,1) 0%, rgba(252,254,255,1) 100%);
+  border-radius: 18px;
+  padding: 2rem 0;
+  margin-bottom: 1rem;
+}
+
+.panel { background: white; padding: 1.75rem; border-radius: 18px; border: 1px solid rgba(58,99,182,0.06); box-shadow: 0 6px 18px rgba(23,43,77,0.03); }
+
+.panel-title { font-size: 1.25rem; font-weight: 800; color: #274060; margin-bottom: 0.85rem; }
+
+.team-card { background: linear-gradient(180deg,#ffffff 0%,#fbfdff 100%); padding:1rem; border-radius:14px; border:1px solid rgba(40,80,130,0.06);} 
+
+.team-name { font-weight:700; color:#14385b }
+
+.btn-primary { background:#d9552a; color:white; padding:0.75rem 1.25rem; border-radius:10px; font-weight:700 }
+
+.btn-outline { background:transparent; color:#d9552a; padding:0.7rem 1.15rem; border-radius:10px; border:2px solid rgba(217,85,42,0.12); font-weight:700 }
