@@ -473,10 +473,27 @@ const verifyOTP = async (req, res) => {
     }
 };
 
+// @desc    Get user by ID
+// @route   GET /api/users/:id
+// @access  Private
+const getUserById = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id).select('-password -realEmail');
+        if (user) {
+            res.json(user);
+        } else {
+            res.status(404).json({ message: 'User not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
     getMe,
+    getUserById,
     updateAvatar,
     updateProfile,
     getAllUsers,

@@ -56,6 +56,10 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  joinedGroups: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Group'
+  }],
   // ===== Security / Login =====
   mustChangePassword: {
     type: Boolean,

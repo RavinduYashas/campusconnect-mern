@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, getMe, updateAvatar, updateProfile, getAllUsers, updateUser, updateUserRole, deleteUser, sendOTP, verifyOTP, adminCreateUser, getExpertCount } = require('../controllers/userController');
+const { registerUser, loginUser, getMe, getUserById, updateAvatar, updateProfile, getAllUsers, updateUser, updateUserRole, deleteUser, sendOTP, verifyOTP, adminCreateUser, getExpertCount } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
 const { roleAuthorize } = require('../middleware/roleMiddleware');
 
@@ -19,5 +19,8 @@ router.post('/admin-create', protect, roleAuthorize('admin'), adminCreateUser);
 router.put('/role/:id', protect, roleAuthorize('admin'), updateUserRole);
 router.put('/:id', protect, roleAuthorize('admin'), updateUser);
 router.delete('/:id', protect, roleAuthorize('admin'), deleteUser);
+
+// Dynamic path with :id should be at the end to avoid catching static paths like /all
+router.get('/:id', protect, getUserById);
 
 module.exports = router;
