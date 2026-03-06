@@ -6,6 +6,8 @@ import Profiles from './pages/Profiles';
 import ProfileView from './pages/ProfileView';
 import QA from './pages/QA';
 import Skills from './pages/Skills';
+import CreateSkill from './pages/CreateSkill';
+import SkillDetails from './pages/SkillDetails';
 import StudyGroups from './pages/StudyGroups';
 import Clubs from './pages/Clubs';
 import Sports from './pages/Sports';
@@ -46,6 +48,9 @@ function App() {
           <Route path="/profile/:id" element={<ProfileView />} />
           <Route path="/qa" element={<QA />} />
           <Route path="/skills" element={<Skills />} />
+          <Route path="/skills/create" element={<CreateSkill />} />
+          <Route path="/skills/:id" element={<SkillDetails />} />
+          <Route path="/skills/edit/:id" element={<CreateSkill />} />
           <Route path="/groups" element={<StudyGroups />} />
           <Route path="/clubs" element={<Clubs />} />
           <Route path="/sports" element={<Sports />} />
