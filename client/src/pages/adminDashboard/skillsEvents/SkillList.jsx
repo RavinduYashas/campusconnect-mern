@@ -2,184 +2,79 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 const SkillList = () => {
     const navigate = useNavigate();
-    const [requests, setRequests] = useState([]);
-    const [offers, setOffers] = useState([]);
+    const [skills, setSkills] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [currentUser] = useState(JSON.parse(localStorage.getItem('user')));
-    
-    // 'requests' or 'offers'
-    const [activeTab, setActiveTab] = useState('requests'); 
+    // Handle both admin and normal login storage formats
+    const [currentUser] = useState(
+        JSON.parse(localStorage.getItem('user')) || JSON.parse(localStorage.getItem('userInfo'))
+    );
     const [searchTerm, setSearchTerm] = useState('');
-
-    // Delete Modal State
-    const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, type: null });
+    const [filter, setFilter] = useState('all'); // all, offer, request
 
     useEffect(() => {
         if (!currentUser || currentUser.role !== 'admin') {
             navigate('/login');
             return;
         }
-        fetchData();
+        fetchSkills();
     }, [currentUser, navigate]);
 
-    const fetchData = async () => {
+    const fetchSkills = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
-            const [reqRes, offRes] = await Promise.all([
-                axios.get('/api/skills/requests', { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get('/api/skills/offers', { headers: { Authorization: `Bearer ${token}` } })
-            ]);
-            setRequests(reqRes.data);
-            setOffers(offRes.data);
+            const res = await axios.get('http://localhost:5000/api/peer-skills');
+            setSkills(res.data);
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to fetch skill data');
+            setError(err.response?.data?.message || 'Failed to fetch skills');
         } finally {
             setLoading(false);
         }
     };
 
-    const triggerDelete = (id, type) => {
-        setDeleteModal({ isOpen: true, id, type });
-    };
-
-    const confirmDelete = async () => {
-        const { id, type } = deleteModal;
-        try {
-            const token = localStorage.getItem('token');
-            if (type === 'requests') {
-                await axios.delete(`/api/skills/requests/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-                setRequests(requests.filter(item => item._id !== id));
-            } else {
-                await axios.delete(`/api/skills/offers/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-                setOffers(offers.filter(item => item._id !== id));
+    const handleDelete = async (id) => {
+        if (window.confirm('Are you sure you want to delete this listing?')) {
+            try {
+                const token = localStorage.getItem('token') || currentUser?.token;
+                await axios.delete(`http://localhost:5000/api/peer-skills/${id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setSkills(skills.filter(skill => skill._id !== id));
+            } catch (err) {
+                alert(err.response?.data?.message || 'Failed to delete listing');
             }
-            setDeleteModal({ isOpen: false, id: null, type: null });
-        } catch (err) {
-            alert(err.response?.data?.message || 'Failed to delete record');
-            setDeleteModal({ isOpen: false, id: null, type: null });
         }
     };
 
-    // Derived State
-    const currentData = activeTab === 'requests' ? requests : activeTab === 'offers' ? offers : offers.filter(o => o.interestedStudents && o.interestedStudents.length > 0);
-    const filteredData = currentData.filter(item => 
-        item.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        (activeTab === 'requests' ? item.requestedBy?.name : item.publishedBy?.name)?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    const handleExportPDF = () => {
-        const doc = new jsPDF();
-        const pageWidth = doc.internal.pageSize.width;
-
-        // --- 1. Header Section ---
-        doc.setFillColor(37, 99, 235); // Primary Blue
-        doc.rect(0, 0, pageWidth, 40, 'F');
-
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(24);
-        doc.setFont('helvetica', 'bold');
-        doc.text("CampusConnect", 14, 25);
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.text("Official Platform Management Report", 14, 32);
-
-        doc.setTextColor(255, 255, 255);
-        doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, pageWidth - 70, 25);
-
-        // --- 2. Report Details ---
-        doc.setTextColor(100, 116, 139); // Gray-500
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        let reportTitle = 'STUDENT REQUESTS';
-        if(activeTab === 'offers') reportTitle = 'EXPERT OFFERS';
-        if(activeTab === 'enrollments') reportTitle = 'ACTIVE ENROLLMENTS';
-        doc.text(`SKILL EXCHANGE MODERATION: ${reportTitle}`, 14, 55);
-
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Total Records: ${filteredData.length}`, 14, 62);
-
-        if (searchTerm) {
-            doc.text(`Filter Active: "${searchTerm}"`, 14, 67);
-        }
-
-        // --- 3. Table Data ---
-        let tableColumn = ["#", "Title", "Owner", "Role", "Date", "Items Count"];
-        if(activeTab === 'enrollments') {
-             tableColumn = ["#", "Skill Offering", "Expert Head", "Total Enrolled", "Students"];
-        }
-        
-        const tableRows = filteredData.map((item, index) => {
-            if(activeTab === 'enrollments') {
-                 const studentNames = item.interestedStudents?.map(s => s.name).join(', ') || 'None';
-                 return [
-                     index + 1,
-                     item.title,
-                     item.publishedBy?.name || 'Deleted User',
-                     item.interestedStudents?.length || 0,
-                     studentNames
-                 ];
-            }
-
-            const ownerObj = activeTab === 'requests' ? item.requestedBy : item.publishedBy;
-            const itemsCount = activeTab === 'requests' ? item.skillsNeeded?.length : item.skillsOffered?.length;
-            return [
-                index + 1,
-                item.title,
-                ownerObj?.name || 'Deleted User',
-                (ownerObj?.role || 'N/A').toUpperCase(),
-                new Date(item.createdAt).toLocaleDateString(),
-                itemsCount || 0
-            ];
-        });
-
-        autoTable(doc, {
-            head: [tableColumn],
-            body: tableRows,
-            startY: 75,
-            theme: 'grid',
-            headStyles: {
-                fillColor: [37, 99, 235],
-                textColor: [255, 255, 255],
-                fontSize: 10,
-                fontStyle: 'bold',
-                halign: 'center'
-            },
-            columnStyles: {
-                0: { cellWidth: 10, halign: 'center' },
-                1: { cellWidth: 70 },
-                2: { cellWidth: 40 },
-                3: { cellWidth: 25 },
-                4: { cellWidth: 25 },
-                5: { cellWidth: 15, halign: 'center' }
-            },
-            styles: { fontSize: 9, cellPadding: 4 },
-            alternateRowStyles: { fillColor: [248, 250, 252] },
-            margin: { top: 75 },
-            didDrawPage: (data) => {
-                const str = "Page " + doc.internal.getNumberOfPages();
-                doc.setFontSize(8);
-                doc.setTextColor(150);
-                doc.text(str, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
-                doc.text("© 2026 CampusConnect Platform - Internal Use Only", 14, doc.internal.pageSize.height - 10);
-            }
-        });
-
-        doc.save(`CampusConnect_Skill_${activeTab}_Report_${Date.now()}.pdf`);
+    const handleEdit = (id) => {
+        navigate(`/skills/edit/${id}`);
     };
+
+    const handleCreate = () => {
+        // Ensure userInfo exists for the CreateSkill component to auth correctly
+        if (!localStorage.getItem('userInfo') && currentUser) {
+            localStorage.setItem('userInfo', JSON.stringify({
+                ...currentUser,
+                token: localStorage.getItem('token') || currentUser.token
+            }));
+        }
+        navigate('/skills/create');
+    };
+
+    const filteredSkills = skills.filter(skill => {
+        const matchesType = filter === 'all' || skill.type === filter;
+        const matchesSearch = skill.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            skill.category.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesType && matchesSearch;
+    });
 
     if (loading) return (
         <div className="flex flex-col items-center justify-center py-20">
             <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin mb-4"></div>
-            <div className="font-bold text-primary animate-pulse">Loading Modular Data...</div>
+            <div className="font-bold text-primary animate-pulse">Loading Skills Data...</div>
         </div>
     );
 
@@ -187,11 +82,18 @@ const SkillList = () => {
         <div>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
                 <div>
-                    <h1 className="text-4xl font-black text-text-main font-heading tracking-tight mb-2">Skill Exchange Moderation</h1>
-                    <p className="text-text-secondary text-sm font-medium">Review and strictly manage all student requests and expert offers.</p>
+                    <h1 className="text-4xl font-black text-text-main font-heading tracking-tight mb-2">Peer Skill Exchange</h1>
+                    <p className="text-text-secondary text-sm font-medium">Manage student skill offers and requests.</p>
                 </div>
                 <div className="flex items-center gap-4">
                     {error && <span className="text-error text-sm font-bold bg-red-50 px-4 py-2 rounded-xl border border-red-100 italic">{error}</span>}
+                    <button
+                        onClick={handleCreate}
+                        className="bg-primary hover:bg-primary-dark text-white px-5 py-2 rounded-xl text-sm font-bold shadow-xl shadow-primary/20 transition-all active:scale-95 flex items-center gap-2 group"
+                    >
+                        <span className="text-xl group-hover:rotate-90 transition-transform">+</span>
+                        Create New Listing
+                    </button>
                 </div>
             </div>
 
@@ -199,35 +101,28 @@ const SkillList = () => {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
                 {/* Tabs */}
                 <div className="flex gap-2 bg-gray-100/50 p-1.5 rounded-[22px] w-fit">
-                    <button
-                        onClick={() => { setActiveTab('requests'); setSearchTerm(''); }}
-                        className={`px-8 py-2.5 rounded-[18px] text-sm font-bold transition-all ${activeTab === 'requests' ? 'bg-white text-primary shadow-sm ring-1 ring-black/5' : 'text-text-secondary hover:text-text-main hover:bg-gray-100'}`}
-                    >
-                        Student Requests
-                        <span className={`ml-2 px-2 py-0.5 rounded-lg text-[10px] ${activeTab === 'requests' ? 'bg-primary/10 text-primary' : 'bg-gray-200 text-gray-500'}`}>{requests.length}</span>
-                    </button>
-                    <button
-                        onClick={() => { setActiveTab('offers'); setSearchTerm(''); }}
-                        className={`px-8 py-2.5 rounded-[18px] text-sm font-bold transition-all ${activeTab === 'offers' ? 'bg-white text-primary shadow-sm ring-1 ring-black/5' : 'text-text-secondary hover:text-text-main hover:bg-gray-100'}`}
-                    >
-                        Expert Offers
-                        <span className={`ml-2 px-2 py-0.5 rounded-lg text-[10px] ${activeTab === 'offers' ? 'bg-primary/10 text-primary' : 'bg-gray-200 text-gray-500'}`}>{offers.length}</span>
-                    </button>
-                    <button
-                        onClick={() => { setActiveTab('enrollments'); setSearchTerm(''); }}
-                        className={`px-8 py-2.5 rounded-[18px] text-sm font-bold transition-all ${activeTab === 'enrollments' ? 'bg-white text-primary shadow-sm ring-1 ring-black/5' : 'text-text-secondary hover:text-text-main hover:bg-gray-100'}`}
-                    >
-                        Enrollment Logs
-                        <span className={`ml-2 px-2 py-0.5 rounded-lg text-[10px] ${activeTab === 'enrollments' ? 'bg-primary/10 text-primary' : 'bg-gray-200 text-gray-500'}`}>{offers.filter(o => o.interestedStudents?.length > 0).length}</span>
-                    </button>
+                    {['all', 'offer', 'request'].map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => { setFilter(tab); setSearchTerm(''); }}
+                            className={`px-6 py-2 rounded-[18px] text-sm font-bold transition-all capitalize ${filter === tab
+                                ? 'bg-white text-primary shadow-sm ring-1 ring-black/5'
+                                : 'text-text-secondary hover:text-text-main hover:bg-gray-100'
+                                }`}
+                        >
+                            {tab}
+                            <span className={`ml-2 px-2 py-0.5 rounded-lg text-[10px] ${filter === tab ? 'bg-primary/10 text-primary' : 'bg-gray-200 text-gray-500'}`}>
+                                {tab === 'all' ? skills.length : skills.filter(s => s.type === tab).length}
+                            </span>
+                        </button>
+                    ))}
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 items-center">
-                    {/* Search Bar */}
                     <div className="relative w-full sm:w-80">
                         <input
                             type="text"
-                            placeholder="Search by title or author name..."
+                            placeholder="Search skills or categories..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full pl-12 pr-6 py-2 bg-white rounded-2xl border border-gray-100 shadow-sm focus:border-primary focus:ring-4 focus:ring-primary/5 transition-all outline-none font-medium"
@@ -236,18 +131,6 @@ const SkillList = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                     </div>
-
-                    {/* Export Button */}
-                    <button
-                        onClick={handleExportPDF}
-                        disabled={filteredData.length === 0}
-                        className="bg-white border border-gray-100 text-text-main hover:bg-gray-50 px-6 py-2 rounded-2xl font-bold transition-all flex items-center gap-2 shadow-sm disabled:opacity-50"
-                    >
-                        <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Export Report
-                    </button>
                 </div>
             </div>
 
@@ -261,111 +144,76 @@ const SkillList = () => {
                     <table className="w-full text-left">
                         <thead className="bg-gray-50/50 border-b border-gray-100">
                             <tr>
-                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">{activeTab === 'enrollments' ? 'Course Topic' : 'Listing Details'}</th>
-                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">{activeTab === 'enrollments' ? 'Expert Master' : 'Description Preview'}</th>
-                                {activeTab !== 'enrollments' && <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">{activeTab === 'requests' ? 'Needed' : 'Offered'} Skills</th>}
-                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">{activeTab === 'enrollments' ? 'Enrolled Students' : 'Date'}</th>
-                                {activeTab !== 'enrollments' && <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest text-right">Moderation</th>}
+                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">Listing Details</th>
+                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">Type</th>
+                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">Creator</th>
+                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">Management</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             <AnimatePresence mode='popLayout'>
-                                {filteredData.map((item) => {
-                                    if (activeTab === 'enrollments') {
-                                        return (
-                                            <motion.tr
-                                                layout
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                exit={{ opacity: 0 }}
-                                                key={`enroll-${item._id}`}
-                                                className="hover:bg-gray-50/80 transition-colors group"
-                                            >
-                                                <td className="px-8 py-5">
-                                                    <h3 className="font-bold text-primary mb-1">{item.title}</h3>
-                                                    <div className="text-[11px] text-primary/70 font-black uppercase tracking-widest opacity-80">{item.interestedStudents?.length} active scholars</div>
-                                                </td>
-                                                <td className="px-8 py-5 font-bold text-text-main text-sm">
-                                                    {item.publishedBy?.name || 'Deleted User'}
-                                                </td>
-                                                <td className="px-8 py-5">
-                                                     <div className="flex flex-col gap-2">
-                                                        {item.interestedStudents?.map((student, i) => (
-                                                            <div key={i} className="flex items-center gap-2">
-                                                                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">
-                                                                    {student.name.charAt(0)}
-                                                                </div>
-                                                                <span className="text-sm font-semibold text-text-secondary">{student.name}</span>
-                                                                <span className="text-[10px] text-gray-400">{student.email}</span>
-                                                            </div>
-                                                        ))}
-                                                     </div>
-                                                </td>
-                                            </motion.tr>
-                                        );
-                                    }
-
-                                    const ownerDetails = activeTab === 'requests' ? item.requestedBy : item.publishedBy;
-                                    const userInitials = ownerDetails?.name ? ownerDetails.name.charAt(0) : '?';
-                                    const targetSkills = activeTab === 'requests' ? item.skillsNeeded : item.skillsOffered;
-
-                                    return (
-                                        <motion.tr
-                                            layout
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0 }}
-                                            key={item._id}
-                                            className="hover:bg-gray-50/80 transition-colors group"
-                                        >
-                                            <td className="px-8 py-5">
-                                                <h3 className="font-bold text-primary mb-1">{item.title}</h3>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] bg-primary/10 text-primary">
-                                                        {userInitials}
-                                                    </div>
-                                                    <div className="text-[11px] text-text-secondary font-semibold uppercase tracking-wider">
-                                                        {ownerDetails?.name || 'Unknown User'} • <span className="text-gray-400">{ownerDetails?.role}</span>
-                                                    </div>
+                                {filteredSkills.map((skill) => (
+                                    <motion.tr
+                                        layout
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        key={skill._id}
+                                        className="hover:bg-gray-50/80 transition-colors group"
+                                    >
+                                        <td className="px-8 py-5">
+                                            <div className="font-bold text-text-main flex items-center gap-2">
+                                                {skill.title}
+                                            </div>
+                                            <div className="text-[11px] text-text-secondary font-semibold uppercase tracking-wider">{skill.category}</div>
+                                        </td>
+                                        <td className="px-8 py-5">
+                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${skill.type === 'offer' ? 'bg-green-50 text-green-600 ring-1 ring-green-100' : 'bg-purple-50 text-purple-600 ring-1 ring-purple-100'}`}>
+                                                {skill.type}
+                                            </span>
+                                        </td>
+                                        <td className="px-8 py-5">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm overflow-hidden">
+                                                    {skill.createdBy?.profilePicture ? (
+                                                        <img src={`http://localhost:5000${skill.createdBy.profilePicture}`} alt="profile" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        skill.createdBy?.firstName?.charAt(0) || 'U'
+                                                    )}
                                                 </div>
-                                            </td>
-                                            <td className="px-8 py-5">
-                                                <p className="text-sm font-medium text-text-secondary max-w-xs truncate">{item.description}</p>
-                                            </td>
-                                            <td className="px-8 py-5">
-                                                 <div className="flex flex-wrap gap-1">
-                                                    {targetSkills?.slice(0, 3).map((s, i) => (
-                                                        <span key={i} className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-[10px] font-bold uppercase">{s}</span>
-                                                    ))}
-                                                    {targetSkills?.length > 3 && <span className="text-xs text-gray-400 font-bold">+{targetSkills.length - 3}</span>}
-                                                 </div>
-                                            </td>
-                                            <td className="px-8 py-5">
-                                                <div className="text-[11px] text-text-secondary font-bold uppercase tracking-wider">
-                                                    {new Date(item.createdAt).toLocaleDateString()}
+                                                <div className="text-sm font-medium text-text-secondary">
+                                                    {skill.createdBy?.firstName} {skill.createdBy?.lastName}
                                                 </div>
-                                            </td>
-                                            <td className="px-8 py-5 text-right">
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-5">
+                                            <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity text-sm">
                                                 <button
-                                                    onClick={() => triggerDelete(item._id, activeTab)}
-                                                    className="bg-red-50 text-error hover:bg-red-100 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-colors inline-block"
+                                                    onClick={() => handleEdit(skill._id)}
+                                                    className="text-primary hover:text-primary-dark font-bold uppercase tracking-wider transition-colors"
                                                 >
-                                                    Force Delete
+                                                    Edit
                                                 </button>
-                                            </td>
-                                        </motion.tr>
-                                    );
-                                })}
+                                                <button
+                                                    onClick={() => handleDelete(skill._id)}
+                                                    className="text-error/60 hover:text-error font-bold uppercase tracking-wider transition-colors"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </motion.tr>
+                                ))}
                             </AnimatePresence>
-                            {filteredData.length === 0 && (
+                            {filteredSkills.length === 0 && (
                                 <tr>
-                                    <td colSpan="5" className="px-8 py-20 text-center">
+                                    <td colSpan="4" className="px-8 py-20 text-center">
                                         <div className="text-gray-300 mb-4">
                                             <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                             </svg>
                                         </div>
-                                        <p className="text-text-secondary font-bold text-lg">No records found matching your criteria</p>
+                                        <p className="text-text-secondary font-bold text-lg">No skills found</p>
                                     </td>
                                 </tr>
                             )}
@@ -373,44 +221,6 @@ const SkillList = () => {
                     </table>
                 </div>
             </motion.div>
-
-            {/* Custom Delete Confirmation Modal */}
-            <AnimatePresence>
-                {deleteModal.isOpen && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                        <motion.div 
-                            initial={{ scale: 0.95, opacity: 0 }} 
-                            animate={{ scale: 1, opacity: 1 }} 
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl relative overflow-hidden text-center"
-                        >
-                            <div className="w-16 h-16 bg-red-100 text-error rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-50">
-                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </div>
-                            <h3 className="text-2xl font-black text-text-main mb-2">Are you sure?</h3>
-                            <p className="text-text-secondary text-sm mb-8 font-medium">
-                                Do you really want to permanently delete this {deleteModal.type === 'requests' ? 'student request' : 'expert offer'}? This action cannot be undone.
-                            </p>
-                            <div className="flex gap-3">
-                                <button
-                                    onClick={() => setDeleteModal({ isOpen: false, id: null, type: null })}
-                                    className="flex-1 px-4 py-3 rounded-xl font-bold bg-gray-100 text-text-main hover:bg-gray-200 transition-colors"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={confirmDelete}
-                                    className="flex-1 px-4 py-3 rounded-xl font-bold bg-error text-white shadow-lg shadow-red-500/30 hover:bg-red-600 transition-colors"
-                                >
-                                    Yes, Delete!
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
         </div>
     );
 };

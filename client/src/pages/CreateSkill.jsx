@@ -14,8 +14,8 @@ const CreateSkill = () => {
     const navigate = useNavigate();
     const { id } = useParams();
 
-    // Handle both 'user' and 'userInfo' local storage formats
-    const userInfo = JSON.parse(localStorage.getItem('user')) || JSON.parse(localStorage.getItem('userInfo'));
+    // Get current user info from local storage
+    const userInfo = JSON.parse(localStorage.getItem('userInfo'));
 
     useEffect(() => {
         if (!userInfo) {
@@ -54,7 +54,7 @@ const CreateSkill = () => {
             const config = {
                 headers: {
                     'Content-Type': 'application/json',
-                    Authorization: `Bearer ${localStorage.getItem('token')}`,
+                    Authorization: `Bearer ${userInfo.token}`,
                 },
             };
 

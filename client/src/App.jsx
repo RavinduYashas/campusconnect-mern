@@ -1,4 +1,3 @@
-// App.jsx
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -7,11 +6,11 @@ import Profiles from './pages/Profiles';
 import ProfileView from './pages/ProfileView';
 import QA from './pages/QA';
 import Skills from './pages/Skills';
-import StudyGroups from './pages/StudyGroups/StudyGroups';
-import StudyGroupDetails from './pages/StudyGroups/StudyGroupDetails';
+import CreateSkill from './pages/CreateSkill';
+import SkillDetails from './pages/SkillDetails';
+import StudyGroups from './pages/StudyGroups';
 import Clubs from './pages/Clubs';
 import Sports from './pages/Sports';
-import Workshops from './pages/Workshops/Workshops';
 import AdminDashboard from './pages/AdminDashboard';
 import ManageUsers from './pages/adminDashboard/studentProfiles/ManageUsers';
 import StudentList from './pages/adminDashboard/studentProfiles/StudentList';
@@ -19,15 +18,8 @@ import SkillList from './pages/adminDashboard/skillsEvents/SkillList';
 import StudyGroupList from './pages/adminDashboard/studyGroupsWorkshops/StudyGroupList';
 import ClubList from './pages/adminDashboard/clubs/ClubList';
 import SportsTeamList from './pages/adminDashboard/sports/SportsTeamList';
-import AllMembers from './pages/adminDashboard/AllMembers';
 import AdminLayout from './components/admin/AdminLayout';
 import ClientLayout from './components/ClientLayout';
-import BatchRepManagement from './pages/adminDashboard/BatchRepManagement';
-import BatchRepDashboard from './pages/BatchRepDashboard';
-import WorkshopDetails from './pages/Workshops/WorkshopDetails';
-
-
-
 
 function App() {
   return (
@@ -42,7 +34,6 @@ function App() {
           <Route path="study-groups" element={<StudyGroupList />} />
           <Route path="clubs" element={<ClubList />} />
           <Route path="sports" element={<SportsTeamList />} />
-          <Route path="all-members" element={<AllMembers />} />
           <Route path="users" element={<ManageUsers />} />
           <Route path="moderation" element={<div className="text-center py-20 text-text-secondary">Moderation Module Coming Soon</div>} />
           <Route path="settings" element={<div className="text-center py-20 text-text-secondary">System Settings Coming Soon</div>} />
@@ -57,17 +48,12 @@ function App() {
           <Route path="/profile/:id" element={<ProfileView />} />
           <Route path="/qa" element={<QA />} />
           <Route path="/skills" element={<Skills />} />
+          <Route path="/skills/create" element={<CreateSkill />} />
+          <Route path="/skills/:id" element={<SkillDetails />} />
+          <Route path="/skills/edit/:id" element={<CreateSkill />} />
           <Route path="/groups" element={<StudyGroups />} />
-          <Route path="/study-groups/:id" element={<StudyGroupDetails />} />
           <Route path="/clubs" element={<Clubs />} />
           <Route path="/sports" element={<Sports />} />
-          <Route path="/workshops" element={<Workshops />} />
-          <Route path="batch-reps" element={<BatchRepManagement />} />
-          <Route path="/batch-rep-dashboard" element={<BatchRepDashboard />} />
-          <Route path="/workshops/:id" element={<WorkshopDetails />} />
-
-
-
         </Route>
       </Routes>
     </Router>
