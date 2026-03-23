@@ -4,29 +4,29 @@ const mongoose = require('mongoose');
 const studyGroupSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Group name is required'],
-    trim: true,
-    maxlength: [100, 'Group name cannot exceed 100 characters']
+    required: true,
+    trim: true
   },
   description: {
     type: String,
-    required: [true, 'Description is required'],
-    trim: true
+    required: true
   },
   type: {
     type: String,
     enum: ['open', 'private'],
+    required: true,
     default: 'open'
   },
   faculty: {
     type: String,
-    required: [true, 'Faculty is required'],
+    required: true,
     enum: ['Computing', 'Engineering', 'Humanities and Sciences', 'Business', 'Architecture', 'Other'],
     default: 'Computing'
   },
   academicYear: {
     type: String,
     enum: ['Year 1', 'Year 2', 'Year 3', 'Year 4'],
+    required: true,
     default: 'Year 1'
   },
   owner: {
@@ -53,14 +53,16 @@ const studyGroupSchema = new mongoose.Schema({
     type: Number,
     default: null
   },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
   studyMaterials: [{
-    title: String,
+    title: {
+      type: String,
+      required: true
+    },
     description: String,
-    fileUrl: String,
+    fileUrl: {
+      type: String,
+      required: true
+    },
     fileName: String,
     fileType: String,
     fileSize: Number,
@@ -74,9 +76,15 @@ const studyGroupSchema = new mongoose.Schema({
     }
   }],
   studySessions: [{
-    title: String,
+    title: {
+      type: String,
+      required: true
+    },
     description: String,
-    date: Date,
+    date: {
+      type: Date,
+      required: true
+    },
     duration: Number,
     location: String,
     resources: [String],
@@ -89,28 +97,11 @@ const studyGroupSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
-  sessionRequests: [{
-    title: String,
-    description: String,
-    preferredDate: Date,
-    preferredDuration: Number,
-    topic: String,
-    requestedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    status: {
-      type: String,
-      enum: ['pending', 'approved', 'rejected'],
-      default: 'pending'
-    },
-    requestedAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
   messages: [{
-    text: String,
+    text: {
+      type: String,
+      required: true
+    },
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
@@ -121,7 +112,11 @@ const studyGroupSchema = new mongoose.Schema({
       type: Date,
       default: Date.now
     }
-  }]
+  }],
+  isActive: {
+    type: Boolean,
+    default: true
+  }
 }, {
   timestamps: true
 });
@@ -129,7 +124,5 @@ const studyGroupSchema = new mongoose.Schema({
 // Indexes for better query performance
 studyGroupSchema.index({ faculty: 1, type: 1, academicYear: 1 });
 studyGroupSchema.index({ 'members.user': 1 });
-studyGroupSchema.index({ isActive: 1 });
-studyGroupSchema.index({ name: 'text', description: 'text' });
 
 module.exports = mongoose.model('StudyGroup', studyGroupSchema);

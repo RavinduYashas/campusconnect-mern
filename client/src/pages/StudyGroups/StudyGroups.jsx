@@ -42,30 +42,7 @@ const StudyGroups = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      
-      console.log('\n=== 🔍 FETCHING STUDY GROUPS ===');
-      console.log('Token exists:', !!token);
-      
-      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-      
-      // Try public endpoint first to see if groups exist
-      try {
-        const publicRes = await axios.get('/api/study-groups/public/all');
-        console.log('✅ Public endpoint - Groups in DB:', publicRes.data.count);
-        if (publicRes.data.groups && publicRes.data.groups.length > 0) {
-          console.log('Sample group:', publicRes.data.groups[0]);
-        }
-      } catch (err) {
-        console.log('⚠️ Public endpoint not available:', err.message);
-      }
-      
-      // If no token, show message but don't fetch authenticated data
-      if (!token) {
-        console.log('❌ No authentication token found');
-        toast.error('Please login to view study groups');
-        setLoading(false);
-        return;
-      }
+      const config = { headers: { Authorization: `Bearer ${token}` } };
 
       const params = new URLSearchParams();
       if (selectedFaculty !== 'all') params.append('faculty', selectedFaculty);
@@ -73,8 +50,9 @@ const StudyGroups = () => {
       if (selectedAcademicYear !== 'all') params.append('academicYear', selectedAcademicYear);
       if (searchQuery.trim() !== '') params.append('search', searchQuery);
 
-      const url = `/api/study-groups${params.toString() ? '?' + params.toString() : ''}`;
-      console.log('\n📡 Fetching from:', url);
+      const url = `/api/study-groups?${params.toString()}`;
+      console.log('🔍 SEARCH URL:', url);
+      console.log('🔍 SEARCH QUERY:', searchQuery);
 
       const [myGroupsRes, availableRes, pendingRes] = await Promise.all([
         axios.get('/api/study-groups/my-groups', config),
@@ -82,40 +60,20 @@ const StudyGroups = () => {
         axios.get('/api/study-groups/pending-requests', config)
       ]);
 
-      console.log('\n📊 API Responses:');
-      console.log('My groups:', myGroupsRes.data.length);
-      console.log('Available groups:', availableRes.data.length);
-      console.log('Pending requests:', pendingRes.data.length);
+      console.log('📊 Available groups count:', availableRes.data.length);
       
       if (availableRes.data.length > 0) {
-        console.log('Sample available group:', availableRes.data[0]);
+        console.log('📊 Found groups:', availableRes.data.map(g => g.name));
+      } else {
+        console.log('⚠️ No groups found matching criteria');
       }
 
       setMyGroups(myGroupsRes.data);
       setAvailableGroups(availableRes.data);
       setPendingRequests(pendingRes.data);
-      
     } catch (error) {
-      console.error('\n❌ Fetch error details:', error);
-      if (error.response) {
-        console.error('Response status:', error.response.status);
-        console.error('Response data:', error.response.data);
-        
-        if (error.response.status === 401) {
-          toast.error('Session expired. Please login again.');
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          navigate('/login');
-        } else {
-          toast.error(error.response.data?.message || 'Failed to fetch study groups');
-        }
-      } else if (error.request) {
-        console.error('No response received:', error.request);
-        toast.error('Cannot connect to server. Please check if backend is running.');
-      } else {
-        console.error('Error:', error.message);
-        toast.error('Failed to fetch study groups');
-      }
+      toast.error('Failed to fetch study groups');
+      console.error('Fetch error:', error);
     } finally {
       setLoading(false);
     }
@@ -152,12 +110,6 @@ const StudyGroups = () => {
   const handleJoinGroup = async (groupId, groupType) => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error('Please login to join groups');
-        navigate('/login');
-        return;
-      }
-      
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
       await axios.post(`/api/study-groups/${groupId}/request`, {}, config);
