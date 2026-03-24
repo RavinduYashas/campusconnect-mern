@@ -13,29 +13,67 @@ const ClubList = () => {
     const [showAllMembers, setShowAllMembers] = useState(false);
     const [allMembers, setAllMembers] = useState([]);
     const [allMembersError, setAllMembersError] = useState('');
+    // filters / pagination / bulk
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(12);
+    const [totalPages, setTotalPages] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterIsActive, setFilterIsActive] = useState('any');
+    const [minMembers, setMinMembers] = useState('');
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [bulkLoading, setBulkLoading] = useState(false);
+
+    const buildQuery = () => {
+        const qs = new URLSearchParams();
+        if (page) qs.set('page', page);
+        if (limit) qs.set('limit', limit);
+        if (searchTerm) qs.set('search', searchTerm);
+        if (filterIsActive && filterIsActive !== 'any') qs.set('isActive', filterIsActive === 'active');
+        if (minMembers) qs.set('minMembers', minMembers);
+        return qs.toString();
+    };
 
     const loadClubs = async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            // Try admin list first if we have a token; fall back to public list
+            const qs = buildQuery();
+            // prefer admin paginated endpoint if token present
             if (token) {
-                // call the admin-only non-colliding endpoint first
-                const resAdmin = await fetch('/api/clubs/admin/all-clubs', { headers: { Authorization: `Bearer ${token}` } });
+                const adminUrl = `/api/clubs/admin/all-clubs${qs ? `?${qs}` : ''}`;
+                const resAdmin = await fetch(adminUrl, { headers: { Authorization: `Bearer ${token}` } });
                 if (resAdmin.ok) {
-                    const data = await resAdmin.json();
-                    setClubs(data);
+                    const body = await resAdmin.json();
+                    // support both array responses and { data, meta }
+                    if (Array.isArray(body)) {
+                        setClubs(body);
+                        setTotal(body.length);
+                        setTotalPages(1);
+                    } else if (body && body.data) {
+                        setClubs(body.data);
+                        setTotal(body.meta?.total || 0);
+                        setTotalPages(body.meta?.totalPages || 1);
+                    }
                     setLoading(false);
                     return;
                 }
 
-                // If admin endpoint is forbidden, fall back to calling /api/clubs with the token
+                // If admin endpoint forbidden, fall back to authenticated public list
                 if (resAdmin.status === 401 || resAdmin.status === 403) {
                     try {
-                        const resAuth = await fetch('/api/clubs', { headers: { Authorization: `Bearer ${token}` } });
+                        const resAuth = await fetch(`/api/clubs${qs ? `?${qs}` : ''}`, { headers: { Authorization: `Bearer ${token}` } });
                         if (resAuth.ok) {
-                            const data = await resAuth.json();
-                            setClubs(data);
+                            const body = await resAuth.json();
+                            if (Array.isArray(body)) {
+                                setClubs(body);
+                                setTotal(body.length);
+                                setTotalPages(1);
+                            } else if (body && body.data) {
+                                setClubs(body.data);
+                                setTotal(body.meta?.total || 0);
+                                setTotalPages(body.meta?.totalPages || 1);
+                            }
                             setLoading(false);
                             return;
                         }
@@ -45,9 +83,17 @@ const ClubList = () => {
                 }
             }
 
-            const res = await fetch('/api/clubs');
+            const res = await fetch(`/api/clubs${qs ? `?${qs}` : ''}`);
             const data = await res.json();
-            setClubs(data);
+            if (Array.isArray(data)) {
+                setClubs(data);
+                setTotal(data.length);
+                setTotalPages(1);
+            } else if (data && data.data) {
+                setClubs(data.data);
+                setTotal(data.meta?.total || 0);
+                setTotalPages(data.meta?.totalPages || 1);
+            }
         } catch (err) {
             console.error('Error loading clubs', err);
         } finally {
@@ -55,7 +101,7 @@ const ClubList = () => {
         }
     };
 
-    useEffect(() => { loadClubs(); }, []);
+    useEffect(() => { loadClubs(); }, [page, limit, searchTerm, filterIsActive, minMembers]);
 
     const handleCreate = () => { setEditing(null); setShowForm(true); };
     const handleEdit = (club) => { setEditing(club); setShowForm(true); };
@@ -201,11 +247,42 @@ const ClubList = () => {
         } catch (err) { alert(err.message || 'Activate failed'); }
     };
 
+    const handleBulkAction = async (action) => {
+        if (!selectedIds.length) return;
+        if (!confirm(`Confirm ${action} selected clubs?`)) return;
+        setBulkLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/clubs/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ ids: selectedIds, action }) });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.message || 'Bulk action failed');
+            alert(body.message || 'Bulk action completed');
+            setSelectedIds([]);
+            loadClubs();
+        } catch (err) {
+            alert(err.message || 'Bulk action failed');
+        } finally {
+            setBulkLoading(false);
+        }
+    };
+
     return (
         <div>
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold">Clubs & Societies Management</h2>
-                <div>
+                <div className="flex items-center gap-2">
+                    <input value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setPage(1); }} placeholder="Search clubs or member emails" className="input" />
+                    <select value={filterIsActive} onChange={e => { setFilterIsActive(e.target.value); setPage(1); }} className="input">
+                        <option value="any">Any</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                    <input type="number" min="0" value={minMembers} onChange={e => { setMinMembers(e.target.value); setPage(1); }} placeholder="Min members" className="input w-32" />
+                    <select value={limit} onChange={e => { setLimit(Number(e.target.value)); setPage(1); }} className="input w-32">
+                        <option value={6}>6</option>
+                        <option value={12}>12</option>
+                        <option value={24}>24</option>
+                    </select>
                     <button onClick={handleCreate} className="btn-primary mr-2">Create Club</button>
                     <button onClick={loadAllMembers} className="btn-outline">All Members</button>
                 </div>
@@ -220,33 +297,61 @@ const ClubList = () => {
             {loading ? (
                 <div>Loading clubs...</div>
             ) : (
-                <div className="grid sm:grid-cols-2 gap-4">
-                    {clubs.map((c) => (
-                        <div key={c._id || c.id} className="bg-white p-4 rounded-lg border shadow-sm">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <h3 className="font-bold">{c.name}</h3>
-                                    <p className="text-sm text-text-secondary">Created by: {c.createdBy?.name || '—'}</p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button onClick={() => handleEdit(c)} className="text-sm btn-outline">Edit</button>
-                                    <button onClick={() => openManage(c)} className="text-sm btn-primary">Manage Members</button>
-                                </div>
-                            </div>
-                            <p className="mt-3 text-text-secondary">{c.description}</p>
-                            <div className="mt-3 flex gap-2 justify-end items-center">
-                                {!c.isActive ? (
-                                    <>
-                                        <span className="text-xs text-text-secondary mr-2">Inactive</span>
-                                        <button onClick={() => activateClub(c)} className="text-sm btn-primary">Activate</button>
-                                    </>
-                                ) : (
-                                    <button onClick={() => handleDeactivate(c)} className="text-sm text-error">Deactivate</button>
-                                )}
-                            </div>
+                <>
+                    <div className="mb-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <label className="flex items-center gap-2">
+                                <input type="checkbox" checked={selectedIds.length === clubs.length && clubs.length > 0} onChange={e => {
+                                    if (e.target.checked) setSelectedIds(clubs.map(c => c._id || c.id)); else setSelectedIds([]);
+                                }} /> Select All
+                            </label>
+                            <button disabled={selectedIds.length === 0 || bulkLoading} onClick={() => handleBulkAction('activate')} className="btn-primary text-sm">Activate Selected</button>
+                            <button disabled={selectedIds.length === 0 || bulkLoading} onClick={() => handleBulkAction('deactivate')} className="btn-outline text-sm">Deactivate Selected</button>
                         </div>
-                    ))}
-                </div>
+                        <div className="text-sm text-text-secondary">Total: {total}</div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        {clubs.map((c) => (
+                            <div key={c._id || c.id} className="bg-white p-4 rounded-lg border shadow-sm">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-start gap-3">
+                                        <input type="checkbox" checked={selectedIds.includes(c._id || c.id)} onChange={e => {
+                                            const id = c._id || c.id;
+                                            if (e.target.checked) setSelectedIds(prev => Array.from(new Set([...prev, id])));
+                                            else setSelectedIds(prev => prev.filter(x => x !== id));
+                                        }} />
+                                        <div>
+                                            <h3 className="font-bold">{c.name}</h3>
+                                            <p className="text-sm text-text-secondary">Created by: {c.createdBy?.name || '—'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => handleEdit(c)} className="text-sm btn-outline">Edit</button>
+                                        <button onClick={() => openManage(c)} className="text-sm btn-primary">Manage Members</button>
+                                    </div>
+                                </div>
+                                <p className="mt-3 text-text-secondary">{c.description}</p>
+                                <div className="mt-3 flex gap-2 justify-end items-center">
+                                    {!c.isActive ? (
+                                        <>
+                                            <span className="text-xs text-text-secondary mr-2">Inactive</span>
+                                            <button onClick={() => activateClub(c)} className="text-sm btn-primary">Activate</button>
+                                        </>
+                                    ) : (
+                                        <button onClick={() => handleDeactivate(c)} className="text-sm text-error">Deactivate</button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-center gap-3">
+                        <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="btn-outline">Prev</button>
+                        <div className="text-sm">Page {page} / {totalPages}</div>
+                        <button disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} className="btn-outline">Next</button>
+                    </div>
+                </>
             )}
 
             {managing && (

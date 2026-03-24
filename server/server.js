@@ -10,6 +10,7 @@ dotenv.config();
 // Connect to Database
 connectDB().then(() => {
     // Create Default Admin
+    
     createAdmin();
     // Seed Q&A Groups
     seedGroups();

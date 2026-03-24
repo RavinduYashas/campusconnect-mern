@@ -13,26 +13,63 @@ const SportsTeamList = () => {
     const [showAllMembers, setShowAllMembers] = useState(false);
     const [allMembers, setAllMembers] = useState([]);
     const [allMembersError, setAllMembersError] = useState('');
+    // filters / pagination / bulk
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(12);
+    const [totalPages, setTotalPages] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterIsActive, setFilterIsActive] = useState('any');
+    const [minMembers, setMinMembers] = useState('');
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [bulkLoading, setBulkLoading] = useState(false);
+    const [csvFile, setCsvFile] = useState(null);
+
+    const buildQuery = () => {
+        const qs = new URLSearchParams();
+        if (page) qs.set('page', page);
+        if (limit) qs.set('limit', limit);
+        if (searchTerm) qs.set('search', searchTerm);
+        if (filterIsActive && filterIsActive !== 'any') qs.set('isActive', filterIsActive === 'active');
+        if (minMembers) qs.set('minMembers', minMembers);
+        return qs.toString();
+    };
 
     const loadTeams = async () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
+            const qs = buildQuery();
             if (token) {
-                const resAdmin = await fetch('/api/sports/admin/all-teams', { headers: { Authorization: `Bearer ${token}` } });
+                const resAdmin = await fetch(`/api/sports/admin/all-teams${qs ? `?${qs}` : ''}`, { headers: { Authorization: `Bearer ${token}` } });
                 if (resAdmin.ok) {
-                    const data = await resAdmin.json();
-                    setTeams(data);
+                    const body = await resAdmin.json();
+                    if (Array.isArray(body)) {
+                        setTeams(body);
+                        setTotal(body.length);
+                        setTotalPages(1);
+                    } else if (body && body.data) {
+                        setTeams(body.data);
+                        setTotal(body.meta?.total || 0);
+                        setTotalPages(body.meta?.totalPages || 1);
+                    }
                     setLoading(false);
                     return;
                 }
-                // fallback to calling /api/sports with token (optionalProtect will attach user)
                 if (resAdmin.status === 401 || resAdmin.status === 403) {
                     try {
-                        const resAuth = await fetch('/api/sports', { headers: { Authorization: `Bearer ${token}` } });
+                        const resAuth = await fetch(`/api/sports${qs ? `?${qs}` : ''}`, { headers: { Authorization: `Bearer ${token}` } });
                         if (resAuth.ok) {
-                            const data = await resAuth.json();
-                            setTeams(data);
+                            const body = await resAuth.json();
+                            if (Array.isArray(body)) {
+                                setTeams(body);
+                                setTotal(body.length);
+                                setTotalPages(1);
+                            } else if (body && body.data) {
+                                setTeams(body.data);
+                                setTotal(body.meta?.total || 0);
+                                setTotalPages(body.meta?.totalPages || 1);
+                            }
                             setLoading(false);
                             return;
                         }
@@ -40,9 +77,17 @@ const SportsTeamList = () => {
                 }
             }
 
-            const res = await fetch('/api/sports');
+            const res = await fetch(`/api/sports${qs ? `?${qs}` : ''}`);
             const data = await res.json();
-            setTeams(data);
+            if (Array.isArray(data)) {
+                setTeams(data);
+                setTotal(data.length);
+                setTotalPages(1);
+            } else if (data && data.data) {
+                setTeams(data.data);
+                setTotal(data.meta?.total || 0);
+                setTotalPages(data.meta?.totalPages || 1);
+            }
         } catch (err) {
             console.error('Error loading teams', err);
         } finally {
@@ -90,7 +135,7 @@ const SportsTeamList = () => {
         }
     };
 
-    useEffect(() => { loadTeams(); }, []);
+    useEffect(() => { loadTeams(); }, [page, limit, searchTerm, filterIsActive, minMembers]);
 
     const handleCreate = () => { setEditing(null); setShowForm(true); };
 
@@ -199,11 +244,81 @@ const SportsTeamList = () => {
         } catch (err) { alert(err.message || 'Remove failed'); }
     };
 
+    const handleBulkAction = async (action) => {
+        if (!selectedIds.length) return;
+        if (!confirm(`Confirm ${action} selected teams?`)) return;
+        setBulkLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/sports/bulk', { method: 'POST', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ ids: selectedIds, action }) });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.message || 'Bulk failed');
+            alert(body.message || 'Bulk completed');
+            setSelectedIds([]);
+            loadTeams();
+        } catch (err) {
+            alert(err.message || 'Bulk failed');
+        } finally { setBulkLoading(false); }
+    };
+
+    const parseCsvText = (text) => {
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        if (!lines.length) return [];
+        const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const emailIdx = header.indexOf('email');
+        const rows = lines.slice(1).map(line => line.split(',').map(c => c.trim()));
+        const result = [];
+        for (const r of rows) {
+            if (emailIdx >= 0) {
+                const email = r[emailIdx];
+                if (email) result.push({ email });
+            } else {
+                // assume first column is email
+                if (r[0]) result.push({ email: r[0] });
+            }
+        }
+        return result;
+    };
+
+    const handleImportCsv = async () => {
+        if (!managing) return alert('Open a team to import members into');
+        if (!csvFile) return alert('Select a CSV file');
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            const txt = e.target.result;
+            const members = parseCsvText(txt);
+            if (!members.length) return alert('No emails found in CSV');
+            const token = localStorage.getItem('token');
+            try {
+                const res = await fetch(`/api/sports/${managing._id || managing.id}/bulk-members`, { method: 'POST', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ members }) });
+                const body = await res.json();
+                if (!res.ok) throw new Error(body.message || 'Import failed');
+                alert('Import completed: ' + JSON.stringify(body.report || body));
+                openManage(managing);
+            } catch (err) {
+                alert(err.message || 'Import failed');
+            }
+        };
+        reader.readAsText(csvFile);
+    };
+
     return (
         <div>
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold">Sports Management</h2>
-                <div>
+                <div className="flex items-center gap-2">
+                    <input value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setPage(1); }} placeholder="Search teams or member emails" className="input" />
+                    <select value={filterIsActive} onChange={e => { setFilterIsActive(e.target.value); setPage(1); }} className="input">
+                        <option value="any">Any</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                    <input type="number" min="0" value={minMembers} onChange={e => { setMinMembers(e.target.value); setPage(1); }} placeholder="Min members" className="input w-32" />
+                    <select value={limit} onChange={e => { setLimit(Number(e.target.value)); setPage(1); }} className="input w-32">
+                        <option value={6}>6</option>
+                        <option value={12}>12</option>
+                        <option value={24}>24</option>
+                    </select>
                     <button onClick={handleCreate} className="btn-primary">Create Team</button>
                     <button onClick={loadAllMembers} className="btn-outline ml-2">All Members</button>
                 </div>
@@ -218,33 +333,61 @@ const SportsTeamList = () => {
             {loading ? (
                 <div>Loading teams...</div>
             ) : (
-                <div className="grid sm:grid-cols-2 gap-4">
-                    {teams.map((t) => (
-                        <div key={t._id || t.id} className="bg-white p-4 rounded-lg border shadow-sm">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <h3 className="font-bold">{t.name}</h3>
-                                    <p className="text-sm text-text-secondary">Coach: {t.coach || '—'}</p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button onClick={() => handleEdit(t)} className="text-sm btn-outline">Edit</button>
-                                    <button onClick={() => openManage(t)} className="text-sm btn-primary">Manage Members</button>
-                                </div>
-                            </div>
-                            <p className="mt-3 text-text-secondary">{t.description}</p>
-                            <div className="mt-3 flex gap-2 justify-end items-center">
-                                {!t.isActive ? (
-                                    <>
-                                        <span className="text-xs text-text-secondary mr-2">Inactive</span>
-                                        <button onClick={() => activateTeam(t)} className="text-sm btn-primary">Activate</button>
-                                    </>
-                                ) : (
-                                    <button onClick={() => handleDeactivate(t)} className="text-sm text-error">Deactivate</button>
-                                )}
-                            </div>
+                <>
+                    <div className="mb-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <label className="flex items-center gap-2">
+                                <input type="checkbox" checked={selectedIds.length === teams.length && teams.length > 0} onChange={e => {
+                                    if (e.target.checked) setSelectedIds(teams.map(t => t._id || t.id)); else setSelectedIds([]);
+                                }} /> Select All
+                            </label>
+                            <button disabled={selectedIds.length === 0 || bulkLoading} onClick={() => handleBulkAction('activate')} className="btn-primary text-sm">Activate Selected</button>
+                            <button disabled={selectedIds.length === 0 || bulkLoading} onClick={() => handleBulkAction('deactivate')} className="btn-outline text-sm">Deactivate Selected</button>
                         </div>
-                    ))}
-                </div>
+                        <div className="text-sm text-text-secondary">Total: {total}</div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        {teams.map((t) => (
+                            <div key={t._id || t.id} className="bg-white p-4 rounded-lg border shadow-sm">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex items-start gap-3">
+                                        <input type="checkbox" checked={selectedIds.includes(t._id || t.id)} onChange={e => {
+                                            const realId = t._id || t.id;
+                                            if (e.target.checked) setSelectedIds(prev => Array.from(new Set([...prev, realId])));
+                                            else setSelectedIds(prev => prev.filter(x => x !== realId));
+                                        }} />
+                                        <div>
+                                            <h3 className="font-bold">{t.name}</h3>
+                                            <p className="text-sm text-text-secondary">Coach: {t.coach || '—'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => handleEdit(t)} className="text-sm btn-outline">Edit</button>
+                                        <button onClick={() => openManage(t)} className="text-sm btn-primary">Manage Members</button>
+                                    </div>
+                                </div>
+                                <p className="mt-3 text-text-secondary">{t.description}</p>
+                                <div className="mt-3 flex gap-2 justify-end items-center">
+                                    {!t.isActive ? (
+                                        <>
+                                            <span className="text-xs text-text-secondary mr-2">Inactive</span>
+                                            <button onClick={() => activateTeam(t)} className="text-sm btn-primary">Activate</button>
+                                        </>
+                                    ) : (
+                                        <button onClick={() => handleDeactivate(t)} className="text-sm text-error">Deactivate</button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-center gap-3">
+                        <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="btn-outline">Prev</button>
+                        <div className="text-sm">Page {page} / {totalPages}</div>
+                        <button disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} className="btn-outline">Next</button>
+                    </div>
+                </>
             )}
 
             {managing && (
@@ -255,6 +398,14 @@ const SportsTeamList = () => {
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-4 mt-4">
+                        <div className="md:col-span-2">
+                            <label className="block mb-2 font-semibold">Import Members (CSV)</label>
+                            <div className="flex items-center gap-2">
+                                <input type="file" accept="text/csv" onChange={e => setCsvFile(e.target.files?.[0] || null)} />
+                                <button onClick={handleImportCsv} className="btn-primary">Import CSV</button>
+                                <div className="text-xs text-text-secondary">CSV should contain an 'email' column or email in first column.</div>
+                            </div>
+                        </div>
                         <div>
                             <h5 className="font-semibold">Current Members</h5>
                             {members.length === 0 ? <p className="text-text-secondary">No members</p> : (

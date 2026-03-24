@@ -6,6 +6,8 @@ const { roleAuthorize } = require('../middleware/roleMiddleware');
 
 // allow optional auth so admins see all clubs while keeping public access for non-auth users
 router.get('/', optionalProtect, getClubs);
+// bulk actions
+router.post('/bulk', protect, roleAuthorize('admin'), bulkUpdateClubs);
 // Admin: aggregated members view
 router.get('/members', protect, roleAuthorize('admin'), getAllMembers);
 // alternate path to avoid route collision with '/:id'

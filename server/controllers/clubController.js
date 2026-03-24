@@ -26,16 +26,68 @@ const createClub = async (req, res) => {
 // @access  Public
 const getClubs = async (req, res) => {
     try {
-        // If the requester is an admin, return all clubs; otherwise return only active ones
-        if (req.user && req.user.role === 'admin') {
-            const clubs = await Club.find({}).populate('createdBy', 'name email avatar');
-            return res.json(clubs);
+        // Support filtering, search and pagination
+        const { page = 1, limit = 10, isActive, createdBy, minMembers, search, sort } = req.query;
+
+        const q = {};
+        // isActive filter: expected 'true'|'false'
+        if (typeof isActive !== 'undefined') {
+            if (isActive === 'true') q.isActive = true;
+            else if (isActive === 'false') q.isActive = false;
         }
 
-        const clubs = await Club.find({ isActive: true }).populate('createdBy', 'name email avatar');
-        res.json(clubs);
+        if (createdBy) q.createdBy = createdBy;
+
+        if (typeof minMembers !== 'undefined') {
+            const n = parseInt(minMembers, 10);
+            if (!isNaN(n)) q.members = { $size: { $gte: n } };
+        }
+
+        // text search on name/description
+        if (search) {
+            const re = new RegExp(search, 'i');
+            q.$or = [ { name: re }, { description: re } ];
+        }
+
+        // Default: if not admin, only active
+        if (!(req.user && req.user.role === 'admin') && typeof isActive === 'undefined') {
+            q.isActive = true;
+        }
+
+        const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+        const perPage = Math.max(parseInt(limit, 10) || 10, 1);
+
+        let cursor = Club.find(q).populate('createdBy', 'name email avatar');
+        // simple sort handling
+        if (sort) {
+            cursor = cursor.sort(sort);
+        } else {
+            cursor = cursor.sort('-createdAt');
+        }
+
+        const total = await Club.countDocuments(q);
+        const clubs = await cursor.skip((pageNum - 1) * perPage).limit(perPage).exec();
+
+        res.json({ data: clubs, meta: { total, page: pageNum, limit: perPage, pages: Math.ceil(total / perPage) } });
     } catch (error) {
         res.status(500).json({ message: error.message });
+    }
+};
+
+// Bulk update clubs (activate/deactivate)
+const bulkUpdateClubs = async (req, res) => {
+    try {
+        // only admin allowed
+        if (!req.user || req.user.role !== 'admin') return res.status(403).json({ message: 'Not authorized' });
+        const { ids = [], action } = req.body;
+        if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: 'No ids provided' });
+        if (!['activate', 'deactivate'].includes(action)) return res.status(400).json({ message: 'Invalid action' });
+
+        const isActive = action === 'activate';
+        const result = await Club.updateMany({ _id: { $in: ids } }, { $set: { isActive } });
+        res.json({ message: 'Bulk update applied', modifiedCount: result.modifiedCount });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 };
 
@@ -326,4 +378,5 @@ module.exports = {
     activateClub,
     getAllMembers,
     getAllClubs,
+    bulkUpdateClubs,
 };
