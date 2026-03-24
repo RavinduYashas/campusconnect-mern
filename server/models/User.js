@@ -66,6 +66,18 @@ const userSchema = new mongoose.Schema({
     default: function () {
       return this.role === "expert"; // force change for newly created experts
     }
+  },
+  banStatus: {
+    isBanned: {
+      type: Boolean,
+      default: false
+    },
+    bannedUntil: {
+      type: Date
+    },
+    banReason: {
+      type: String
+    }
   }
 }, {
   timestamps: true
