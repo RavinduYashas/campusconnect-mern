@@ -2,19 +2,11 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
-import ConfirmModal from '../../../components/ConfirmModal';
 
 const ManageQuestions = () => {
     const [questions, setQuestions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [confirmModal, setConfirmModal] = useState({
-        show: false,
-        title: '',
-        message: '',
-        type: 'delete',
-        id: null
-    });
 
     const fetchQuestions = async () => {
         try {
@@ -35,27 +27,16 @@ const ManageQuestions = () => {
         fetchQuestions();
     }, []);
 
-    const handleDelete = (id) => {
-        setConfirmModal({
-            show: true,
-            title: 'Delete Question',
-            message: 'Are you sure you want to delete this question? This will also delete all associated answers.',
-            type: 'delete',
-            id
-        });
-    };
-
-    const executeDelete = async () => {
+    const handleDelete = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this question? This will also delete all associated answers.")) return;
         try {
             const token = localStorage.getItem('token');
-            await axios.delete(`/api/qa/questions/${confirmModal.id}`, {
+            await axios.delete(`/api/qa/questions/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setQuestions(questions.filter(q => q._id !== confirmModal.id));
-            setConfirmModal({ ...confirmModal, show: false });
+            setQuestions(questions.filter(q => q._id !== id));
         } catch (err) {
             alert(err.response?.data?.message || "Delete failed");
-            setConfirmModal({ ...confirmModal, show: false });
         }
     };
 
@@ -148,14 +129,6 @@ const ManageQuestions = () => {
                     </tbody>
                 </table>
             </div>
-            <ConfirmModal
-                show={confirmModal.show}
-                title={confirmModal.title}
-                message={confirmModal.message}
-                type={confirmModal.type}
-                onConfirm={executeDelete}
-                onCancel={() => setConfirmModal({ ...confirmModal, show: false })}
-            />
         </motion.div>
     );
 };

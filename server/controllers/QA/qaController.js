@@ -248,7 +248,7 @@ exports.getQuestionsByGroup = async (req, res) => {
         if (topic) query.topic = topic;
 
         const questions = await Question.find(query)
-            .populate("askedBy", "name avatar isBatchRep")
+            .populate("askedBy", "name avatar")
             .populate({
                 path: "answers",
                 populate: { path: "answeredBy", select: "name avatar expertProfile" }
@@ -267,7 +267,7 @@ exports.getQuestionsByGroup = async (req, res) => {
 exports.getCommunityMembers = async (req, res) => {
     try {
         const students = await User.find({ role: 'student' })
-            .select('name avatar joinedGroups academicInfo field isBatchRep')
+            .select('name avatar joinedGroups academicInfo field')
             .limit(10); // Optionally limit for performance
 
         const experts = await User.find({ role: 'expert' })
@@ -467,7 +467,7 @@ exports.getProfileQAData = async (req, res) => {
 
         // Get questions asked by user (with their full answers)
         const questions = await Question.find({ askedBy: userId })
-            .populate("askedBy", "name avatar isBatchRep")
+            .populate("askedBy", "name avatar")
             .populate({
                 path: "answers",
                 populate: { path: "answeredBy", select: "name avatar" }
@@ -479,15 +479,14 @@ exports.getProfileQAData = async (req, res) => {
             .populate({
                 path: "question",
                 populate: [
-                    { path: "askedBy", select: "name avatar isBatchRep" },
+                    { path: "askedBy", select: "name avatar" },
                     { path: "answers", populate: { path: "answeredBy", select: "name avatar" } }
                 ]
             })
             .sort({ createdAt: -1 });
 
         // Reputation stats
-        const solvedSolutionsCount = await Answer.countDocuments({ answeredBy: userId, isSolved: true });
-        const solvedQuestionsAskedCount = await Question.countDocuments({ askedBy: userId, isSolved: true });
+        const solvedCount = await Answer.countDocuments({ answeredBy: userId, isSolved: true });
 
         let totalLikes = 0;
         answers.forEach(ans => {
@@ -500,8 +499,7 @@ exports.getProfileQAData = async (req, res) => {
             stats: {
                 totalPosts: questions.length,
                 totalAnswers: answers.length,
-                solvedSolutions: solvedSolutionsCount,
-                solvedQuestions: solvedQuestionsAskedCount,
+                solvedSolutions: solvedCount,
                 helpfulLikes: totalLikes
             }
         });
@@ -520,16 +518,14 @@ exports.getQAStats = async (req, res) => {
             totalAnswers,
             totalGroups,
             totalExperts,
-            totalStudents,
-            unansweredQuestions
+            totalStudents
         ] = await Promise.all([
             Question.countDocuments(),
             Question.countDocuments({ isSolved: true }),
             Answer.countDocuments(),
             Group.countDocuments(),
             User.countDocuments({ role: 'expert' }),
-            User.countDocuments({ role: 'student' }),
-            Question.countDocuments({ answers: { $size: 0 } })
+            User.countDocuments({ role: 'student' })
         ]);
 
         res.json({
@@ -538,8 +534,7 @@ exports.getQAStats = async (req, res) => {
             totalAnswers,
             totalGroups,
             totalExperts,
-            totalStudents,
-            unansweredQuestions
+            totalStudents
         });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
@@ -583,7 +578,7 @@ exports.getRecentActivity = async (req, res) => {
 exports.getAllQuestions = async (req, res) => {
     try {
         const questions = await Question.find()
-            .populate("askedBy", "name email avatar isBatchRep")
+            .populate("askedBy", "name email avatar")
             .populate("group", "name")
             .sort({ createdAt: -1 });
         res.json(questions);
@@ -645,7 +640,7 @@ exports.getGroupByIdAdmin = async (req, res) => {
 exports.getQuestionDetailAdmin = async (req, res) => {
     try {
         const question = await Question.findById(req.params.id)
-            .populate("askedBy", "name email avatar isBatchRep")
+            .populate("askedBy", "name email avatar")
             .populate("group", "name")
             .populate({
                 path: "answers",
@@ -770,76 +765,6 @@ exports.adminUnbanUser = async (req, res) => {
         // --------------------------
 
         res.json({ message: "User unbanned from Q&A successfully", userId });
-    } catch (error) {
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
-};
-
-// @desc    Create a new group (Admin)
-// @route   POST /api/qa/admin/groups
-// @access  Private (Admin)
-exports.adminCreateGroup = async (req, res) => {
-    try {
-        const { name } = req.body;
-
-        if (!name) {
-            return res.status(400).json({ message: "Group name is required" });
-        }
-
-        const existingGroup = await Group.findOne({ name });
-        if (existingGroup) {
-            return res.status(400).json({ message: "Group with this name already exists" });
-        }
-
-        const group = await Group.create({
-            name,
-            members: [] // Starts empty
-        });
-
-        res.status(201).json(group);
-    } catch (error) {
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
-};
-
-// @desc    Update a group (Admin)
-// @route   PUT /api/qa/admin/groups/:id
-// @access  Private (Admin)
-exports.adminUpdateGroup = async (req, res) => {
-    try {
-        const { name } = req.body;
-        const group = await Group.findById(req.params.id);
-
-        if (!group) return res.status(404).json({ message: "Group not found" });
-
-        if (name) {
-            const existingGroup = await Group.findOne({ name, _id: { $ne: req.params.id } });
-            if (existingGroup) {
-                return res.status(400).json({ message: "Group with this name already exists" });
-            }
-            group.name = name;
-        }
-
-        await group.save();
-        res.json(group);
-    } catch (error) {
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
-};
-
-// @desc    Delete a group (Admin)
-// @route   DELETE /api/qa/admin/groups/:id
-// @access  Private (Admin)
-exports.adminDeleteGroup = async (req, res) => {
-    try {
-        const group = await Group.findById(req.params.id);
-        if (!group) return res.status(404).json({ message: "Group not found" });
-
-        // Optional: Perform cleanup (remove group from users' joinedGroups, or delete questions)
-        // For now, just delete the group
-        await Group.findByIdAndDelete(req.params.id);
-
-        res.json({ message: "Group deleted successfully", groupId: req.params.id });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }

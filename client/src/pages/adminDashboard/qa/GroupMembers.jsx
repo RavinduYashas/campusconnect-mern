@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import ConfirmModal from '../../../components/ConfirmModal';
 
 const GroupMembers = () => {
     const { id } = useParams();
@@ -14,14 +13,6 @@ const GroupMembers = () => {
     const [banDuration, setBanDuration] = useState('24');
     const [banReason, setBanReason] = useState('');
     const [actionLoading, setActionLoading] = useState(false);
-    const [confirmModal, setConfirmModal] = useState({
-        show: false,
-        title: '',
-        message: '',
-        type: 'remove',
-        userId: null,
-        userName: ''
-    });
 
     useEffect(() => {
         const fetchGroupDetails = async () => {
@@ -42,34 +33,23 @@ const GroupMembers = () => {
         fetchGroupDetails();
     }, [id]);
 
-    const handleRemoveMember = (userId, userName) => {
-        setConfirmModal({
-            show: true,
-            title: 'Remove Member',
-            message: `Are you sure you want to remove ${userName} from this group?`,
-            type: 'remove',
-            userId,
-            userName
-        });
-    };
+    const handleRemoveMember = async (userId, userName) => {
+        if (!window.confirm(`Are you sure you want to remove ${userName} from this group?`)) return;
 
-    const executeRemoveMember = async () => {
         try {
             setActionLoading(true);
             const token = localStorage.getItem('token');
-            await axios.post(`/api/qa/admin/groups/${id}/members/${confirmModal.userId}/remove`, {}, {
+            await axios.post(`/api/qa/admin/groups/${id}/members/${userId}/remove`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setGroup(prev => ({
                 ...prev,
-                members: prev.members.filter(m => m._id !== confirmModal.userId)
+                members: prev.members.filter(m => m._id !== userId)
             }));
             setActionLoading(false);
-            setConfirmModal({ ...confirmModal, show: false });
         } catch (err) {
             alert(err.response?.data?.message || "Failed to remove member");
             setActionLoading(false);
-            setConfirmModal({ ...confirmModal, show: false });
         }
     };
 
@@ -290,15 +270,6 @@ const GroupMembers = () => {
                     </div>
                 )}
             </AnimatePresence>
-
-            <ConfirmModal
-                show={confirmModal.show}
-                title={confirmModal.title}
-                message={confirmModal.message}
-                type={confirmModal.type}
-                onConfirm={executeRemoveMember}
-                onCancel={() => setConfirmModal({ ...confirmModal, show: false })}
-            />
         </motion.div>
     );
 };
