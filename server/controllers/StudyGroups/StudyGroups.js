@@ -2,6 +2,8 @@
 const StudyGroup = require('../../models/StudyGroups/StudyGroups');
 const User = require('../../models/User');
 
+// ========== GROUP MANAGEMENT FUNCTIONS ==========
+
 // @desc    Create a new study group
 // @route   POST /api/study-groups
 // @access  Private
@@ -356,7 +358,8 @@ const getStudyGroupDetails = async (req, res) => {
       .populate('members.user', 'name avatar')
       .populate('studyMaterials.uploadedBy', 'name avatar')
       .populate('studySessions.createdBy', 'name avatar')
-      .populate('messages.user', 'name avatar');
+      .populate('messages.user', 'name avatar')
+      .populate('sessionRequests.requestedBy', 'name avatar');
 
     if (!studyGroup) {
       return res.status(404).json({ message: 'Study group not found' });
@@ -380,8 +383,60 @@ const getStudyGroupDetails = async (req, res) => {
   }
 };
 
-// @desc    Add study material to group
+// ========== STUDY MATERIALS FUNCTIONS ==========
+
+// @desc    Upload study material (with file upload)
 // @route   POST /api/study-groups/:groupId/materials
+// @access  Private
+const uploadStudyMaterial = async (req, res) => {
+  try {
+    const studyGroup = await StudyGroup.findById(req.params.groupId);
+
+    if (!studyGroup) {
+      return res.status(404).json({ message: 'Study group not found' });
+    }
+
+    const isMember = studyGroup.members.some(
+      m => m.user.toString() === req.user.id && m.status === 'approved'
+    );
+
+    if (!isMember && studyGroup.owner.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Only group members can add study materials' });
+    }
+
+    const { title, description } = req.body;
+    
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    // Save file info
+    const fileUrl = `/uploads/study-materials/${req.file.filename}`;
+
+    studyGroup.studyMaterials.push({
+      title,
+      description,
+      fileUrl,
+      fileName: req.file.originalname,
+      fileType: req.file.mimetype,
+      fileSize: req.file.size,
+      uploadedBy: req.user.id
+    });
+
+    await studyGroup.save();
+    
+    res.status(201).json({ 
+      message: 'Study material uploaded successfully', 
+      material: studyGroup.studyMaterials[studyGroup.studyMaterials.length - 1] 
+    });
+  } catch (error) {
+    console.error('Error uploading study material:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Add study material to group (without file upload)
+// @route   POST /api/study-groups/:groupId/materials (alternative)
 // @access  Private (Members only)
 const addStudyMaterial = async (req, res) => {
   const { title, description, fileUrl, fileName, fileType, fileSize } = req.body;
@@ -417,7 +472,7 @@ const addStudyMaterial = async (req, res) => {
       material: studyGroup.studyMaterials[studyGroup.studyMaterials.length - 1] 
     });
   } catch (error) {
-    console.error('❌ Error adding study material:', error);
+    console.error('Error adding study material:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -454,10 +509,12 @@ const deleteStudyMaterial = async (req, res) => {
 
     res.json({ message: 'Study material deleted successfully' });
   } catch (error) {
-    console.error('❌ Error deleting study material:', error);
+    console.error('Error deleting study material:', error);
     res.status(500).json({ message: error.message });
   }
 };
+
+// ========== STUDY SESSIONS FUNCTIONS ==========
 
 // @desc    Add study session
 // @route   POST /api/study-groups/:groupId/sessions
@@ -484,8 +541,8 @@ const addStudySession = async (req, res) => {
       title,
       description,
       date: new Date(date),
-      duration,
-      location,
+      duration: duration || 60,
+      location: location || '',
       resources: resources || [],
       createdBy: req.user.id
     });
@@ -496,7 +553,7 @@ const addStudySession = async (req, res) => {
       session: studyGroup.studySessions[studyGroup.studySessions.length - 1] 
     });
   } catch (error) {
-    console.error('❌ Error adding study session:', error);
+    console.error('Error adding study session:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -533,10 +590,170 @@ const deleteStudySession = async (req, res) => {
 
     res.json({ message: 'Study session deleted successfully' });
   } catch (error) {
-    console.error('❌ Error deleting study session:', error);
+    console.error('Error deleting study session:', error);
     res.status(500).json({ message: error.message });
   }
 };
+
+// ========== SESSION REQUEST FUNCTIONS ==========
+
+// @desc    Request a study session
+// @route   POST /api/study-groups/:groupId/session-requests
+// @access  Private (Members only)
+const requestStudySession = async (req, res) => {
+  const { title, description, preferredDate, preferredDuration, topic } = req.body;
+
+  try {
+    const studyGroup = await StudyGroup.findById(req.params.groupId);
+
+    if (!studyGroup) {
+      return res.status(404).json({ message: 'Study group not found' });
+    }
+
+    const isMember = studyGroup.members.some(
+      m => m.user.toString() === req.user.id && m.status === 'approved'
+    );
+
+    if (!isMember && studyGroup.owner.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Only group members can request study sessions' });
+    }
+
+    if (!studyGroup.sessionRequests) {
+      studyGroup.sessionRequests = [];
+    }
+
+    studyGroup.sessionRequests.push({
+      title,
+      description,
+      preferredDate: new Date(preferredDate),
+      preferredDuration,
+      topic,
+      requestedBy: req.user.id,
+      status: 'pending'
+    });
+
+    await studyGroup.save();
+    
+    res.status(201).json({ 
+      message: 'Study session request submitted successfully',
+      request: studyGroup.sessionRequests[studyGroup.sessionRequests.length - 1]
+    });
+  } catch (error) {
+    console.error('Error requesting study session:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get session requests for a group (owner only)
+// @route   GET /api/study-groups/:groupId/session-requests
+// @access  Private (Owner only)
+const getSessionRequests = async (req, res) => {
+  try {
+    const studyGroup = await StudyGroup.findById(req.params.groupId)
+      .populate('sessionRequests.requestedBy', 'name avatar');
+
+    if (!studyGroup) {
+      return res.status(404).json({ message: 'Study group not found' });
+    }
+
+    if (studyGroup.owner.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Only group owner can view session requests' });
+    }
+
+    const pendingRequests = studyGroup.sessionRequests.filter(
+      request => request.status === 'pending'
+    );
+
+    res.json(pendingRequests);
+  } catch (error) {
+    console.error('Error getting session requests:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Approve a session request
+// @route   PUT /api/study-groups/:groupId/session-requests/:requestId/approve
+// @access  Private (Owner only)
+const approveSessionRequest = async (req, res) => {
+  try {
+    const studyGroup = await StudyGroup.findById(req.params.groupId);
+
+    if (!studyGroup) {
+      return res.status(404).json({ message: 'Study group not found' });
+    }
+
+    if (studyGroup.owner.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Only group owner can approve requests' });
+    }
+
+    const requestIndex = studyGroup.sessionRequests.findIndex(
+      r => r._id.toString() === req.params.requestId && r.status === 'pending'
+    );
+
+    if (requestIndex === -1) {
+      return res.status(404).json({ message: 'Request not found' });
+    }
+
+    const request = studyGroup.sessionRequests[requestIndex];
+    
+    // Automatically create a study session from the request
+    studyGroup.studySessions.push({
+      title: request.title,
+      description: request.description,
+      date: request.preferredDate,
+      duration: request.preferredDuration,
+      location: 'To be announced',
+      resources: [],
+      createdBy: req.user.id
+    });
+
+    // Mark request as approved
+    studyGroup.sessionRequests[requestIndex].status = 'approved';
+    studyGroup.sessionRequests[requestIndex].approvedAt = new Date();
+
+    await studyGroup.save();
+    
+    res.json({ message: 'Session request approved and session created' });
+  } catch (error) {
+    console.error('Error approving session request:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Reject a session request
+// @route   DELETE /api/study-groups/:groupId/session-requests/:requestId
+// @access  Private (Owner only)
+const rejectSessionRequest = async (req, res) => {
+  try {
+    const studyGroup = await StudyGroup.findById(req.params.groupId);
+
+    if (!studyGroup) {
+      return res.status(404).json({ message: 'Study group not found' });
+    }
+
+    if (studyGroup.owner.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Only group owner can reject requests' });
+    }
+
+    const requestIndex = studyGroup.sessionRequests.findIndex(
+      r => r._id.toString() === req.params.requestId && r.status === 'pending'
+    );
+
+    if (requestIndex === -1) {
+      return res.status(404).json({ message: 'Request not found' });
+    }
+
+    studyGroup.sessionRequests.splice(requestIndex, 1);
+    await studyGroup.save();
+    
+    res.json({ message: 'Session request rejected' });
+  } catch (error) {
+    console.error('Error rejecting session request:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// ========== CHAT FUNCTIONS ==========
 
 // @desc    Send message in group chat
 // @route   POST /api/study-groups/:groupId/messages
@@ -572,7 +789,7 @@ const sendMessage = async (req, res) => {
     const newMessage = studyGroup.messages[studyGroup.messages.length - 1];
     res.status(201).json(newMessage);
   } catch (error) {
-    console.error('❌ Error sending message:', error);
+    console.error('Error sending message:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -599,10 +816,12 @@ const getMessages = async (req, res) => {
 
     res.json(studyGroup.messages);
   } catch (error) {
-    console.error('❌ Error getting messages:', error);
+    console.error('Error getting messages:', error);
     res.status(500).json({ message: error.message });
   }
 };
+
+// ========== COMPATIBILITY FUNCTIONS ==========
 
 // Placeholder functions for backward compatibility
 const addMeeting = async (req, res) => {
@@ -613,7 +832,10 @@ const addSession = async (req, res) => {
   res.json({ message: 'Add session - use study sessions instead' });
 };
 
+// ========== EXPORT ALL FUNCTIONS ==========
+
 module.exports = {
+  // Group management
   createStudyGroup,
   getAllStudyGroups,
   getMyStudyGroups,
@@ -623,12 +845,27 @@ module.exports = {
   leaveGroup,
   deleteStudyGroup,
   getStudyGroupDetails,
-  addMeeting,
-  addSession,
+  
+  // Study materials
   addStudyMaterial,
   deleteStudyMaterial,
+  uploadStudyMaterial,
+  
+  // Study sessions
   addStudySession,
   deleteStudySession,
+  
+  // Session requests
+  requestStudySession,
+  getSessionRequests,
+  approveSessionRequest,
+  rejectSessionRequest,
+  
+  // Chat
   sendMessage,
-  getMessages
+  getMessages,
+  
+  // Compatibility
+  addMeeting,
+  addSession
 };

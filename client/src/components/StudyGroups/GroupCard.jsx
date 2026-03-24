@@ -6,11 +6,17 @@ const GroupCard = ({ group, isMember, isOwner, hasPendingRequest, onJoin, onLeav
     return group.type === 'open' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700';
   };
 
+  const handleCardClick = () => {
+    if (onClick) {
+      onClick();
+    }
+  };
+
   return (
     <motion.div
       whileHover={{ y: -4 }}
       className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all border border-gray-100 overflow-hidden cursor-pointer"
-      onClick={onClick}
+      onClick={handleCardClick}
     >
       <div className="p-6">
         <div className="flex justify-between items-start mb-3">

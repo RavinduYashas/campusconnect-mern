@@ -2,6 +2,34 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../../middleware/authMiddleware');
+const multer = require('multer');
+const path = require('path');
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/study-materials/');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype === 'application/pdf') {
+    cb(null, true);
+  } else {
+    cb(new Error('Only PDF files are allowed'), false);
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: fileFilter
+});
+
 const {
   createStudyGroup,
   getAllStudyGroups,
@@ -19,7 +47,12 @@ const {
   addStudySession,
   deleteStudySession,
   sendMessage,
-  getMessages
+  getMessages,
+  requestStudySession,
+  getSessionRequests,
+  approveSessionRequest,
+  rejectSessionRequest,
+  uploadStudyMaterial
 } = require('../../controllers/StudyGroups/StudyGroups');
 
 // Debug middleware
@@ -42,12 +75,18 @@ router.delete('/:groupId', protect, deleteStudyGroup);
 router.get('/:groupId', protect, getStudyGroupDetails);
 
 // Study Materials routes
-router.post('/:groupId/materials', protect, addStudyMaterial);
+router.post('/:groupId/materials', protect, upload.single('file'), uploadStudyMaterial);
 router.delete('/:groupId/materials/:materialId', protect, deleteStudyMaterial);
 
 // Study Sessions routes
 router.post('/:groupId/sessions', protect, addStudySession);
 router.delete('/:groupId/sessions/:sessionId', protect, deleteStudySession);
+
+// Session Requests routes
+router.post('/:groupId/session-requests', protect, requestStudySession);
+router.get('/:groupId/session-requests', protect, getSessionRequests);
+router.put('/:groupId/session-requests/:requestId/approve', protect, approveSessionRequest);
+router.delete('/:groupId/session-requests/:requestId', protect, rejectSessionRequest);
 
 // Chat routes
 router.post('/:groupId/messages', protect, sendMessage);

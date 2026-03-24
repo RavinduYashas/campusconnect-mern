@@ -97,6 +97,35 @@ const studyGroupSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+  // New: Session requests from members
+  sessionRequests: [{
+    title: {
+      type: String,
+      required: true
+    },
+    description: String,
+    preferredDate: {
+      type: Date,
+      required: true
+    },
+    preferredDuration: Number,
+    topic: String,
+    requestedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
+    },
+    approvedAt: Date,
+    requestedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   messages: [{
     text: {
       type: String,
@@ -124,5 +153,7 @@ const studyGroupSchema = new mongoose.Schema({
 // Indexes for better query performance
 studyGroupSchema.index({ faculty: 1, type: 1, academicYear: 1 });
 studyGroupSchema.index({ 'members.user': 1 });
+studyGroupSchema.index({ 'sessionRequests.status': 1 });
+studyGroupSchema.index({ 'messages.createdAt': -1 });
 
 module.exports = mongoose.model('StudyGroup', studyGroupSchema);
