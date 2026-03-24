@@ -3,6 +3,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profiles from './pages/Profiles';
+import ProfileView from './pages/ProfileView';
 import QA from './pages/QA';
 import Skills from './pages/Skills';
 import StudyGroups from './pages/StudyGroups';
@@ -42,6 +43,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/profiles" element={<Profiles />} />
+          <Route path="/profile/:id" element={<ProfileView />} />
           <Route path="/qa" element={<QA />} />
           <Route path="/skills" element={<Skills />} />
           <Route path="/groups" element={<StudyGroups />} />

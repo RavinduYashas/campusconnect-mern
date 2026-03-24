@@ -3,24 +3,24 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #1E3A8A;
-  --color-primary-dark: #172554;
-  --color-primary-light: #3B82F6;
+  --color-primary: #1E3A8A; /*Deep Royal Blue*/
+  --color-primary-dark: #172554; /*Midnight Blue*/
+  --color-primary-light: #3B82F6; /*Bright Blue*/
 
-  --color-accent: #F97316;
-  --color-accent-hover: #EA580C;
+  --color-accent: #F97316; /*Vibrant Orange*/
+  --color-accent-hover: #EA580C; /*Burnt Orange*/
 
-  --color-bg-main: #F1F5F9;
-  --color-bg-card: #FFFFFF;
-  --color-bg-light: #E2E8F0;
+  --color-bg-main: #F1F5F9; /*Light Gray*/
+  --color-bg-card: #FFFFFF; /*White*/
+  --color-bg-light: #E2E8F0; /*Light Gray*/
 
-  --color-text-main: #1E293B;
-  --color-text-secondary: #475569;
-  --color-text-muted: #94A3B8;
+  --color-text-main: #1E293B; /*Dark Gray*/
+  --color-text-secondary: #475569; /*Gray*/
+  --color-text-muted: #94A3B8; /*Light Gray*/
 
-  --color-success: #16A34A;
-  --color-warning: #FACC15;
-  --color-error: #DC2626;
+  --color-success: #16A34A; /*Green*/
+  --color-warning: #FACC15; /*Yellow*/
+  --color-error: #DC2626; /*Red*/
 
   --font-heading: 'Raleway', sans-serif;
   --font-body: 'Mulish', sans-serif;
@@ -57,4 +57,41 @@ h2 {
 
 h3 {
   font-size: 1.75rem;
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #E2E8F0;
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #CBD5E1;
+  }
+
+  @keyframes pulse-slow {
+
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    50% {
+      opacity: 0.8;
+      transform: scale(0.98);
+    }
+  }
+
+  .animate-pulse-slow {
+    animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
 }

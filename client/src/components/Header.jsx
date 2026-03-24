@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import NotificationsDropdown from './NotificationsDropdown';
 
 const Header = () => {
     const navigate = useNavigate();
@@ -23,6 +24,7 @@ const Header = () => {
                 <div className="flex items-center space-x-5">
                     {user ? (
                         <div className="flex items-center gap-4">
+                            <NotificationsDropdown />
                             {user.role === 'admin' && (
                                 <Link
                                     to="/admin/dashboard"

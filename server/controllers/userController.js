@@ -297,15 +297,48 @@ const deleteUser = async (req, res) => {
     }
 };
 
+// Helper to get next available expert email
+const getNextExpertEmail = async () => {
+    // Find all users with the expert email pattern
+    const experts = await User.find({ email: /^ept\d{3}@sliitplatform\.com$/ }, 'email');
+
+    // Extract numerical IDs
+    const existingIds = experts
+        .map(e => {
+            const match = e.email.match(/^ept(\d{3})@/);
+            return match ? parseInt(match[1]) : null;
+        })
+        .filter(id => id !== null)
+        .sort((a, b) => a - b);
+
+    // Find the first gap
+    let nextId = 1;
+    for (const id of existingIds) {
+        if (id === nextId) {
+            nextId++;
+        } else if (id > nextId) {
+            break;
+        }
+    }
+
+    const nextIdStr = nextId.toString().padStart(3, '0');
+    return {
+        email: `ept${nextIdStr}@sliitplatform.com`,
+        id: nextId
+    };
+};
+
 // @desc    Admin create user (Manual add Expert/Student)
 // @route   POST /api/users/admin-create
 // @access  Private/Admin
 const getExpertCount = async (req, res) => {
     console.log('--- GET expert-count hit ---');
     try {
-        const count = await User.countDocuments({ role: /expert/i });
-        console.log('--- Current expert count (case-insensitive) ---:', count);
-        res.status(200).json({ count });
+        const { id } = await getNextExpertEmail();
+        // We return id - 1 so the frontend's (expertCount + 1) logic still works if not updated,
+        // but it's better to update frontend too. For now, let's keep it compatible.
+        // Actually, if we return the count as (nextId - 1), then (count + 1) == nextId.
+        res.status(200).json({ count: id - 1 });
     } catch (error) {
         console.error('--- Error in getExpertCount ---:', error);
         res.status(500).json({ message: error.message });
@@ -330,9 +363,8 @@ const adminCreateUser = async (req, res) => {
                 return res.status(400).json({ message: 'An expert with this personal email already exists' });
             }
 
-            const expertCount = await User.countDocuments({ role: /expert/i });
-            const expertId = (expertCount + 1).toString().padStart(3, '0');
-            emailToUse = `ept${expertId}@sliitplatform.com`;
+            const { email: generatedEmail } = await getNextExpertEmail();
+            emailToUse = generatedEmail;
         } else {
             if (!emailToUse) {
                 return res.status(400).json({ message: 'Email is required' });
@@ -473,10 +505,27 @@ const verifyOTP = async (req, res) => {
     }
 };
 
+// @desc    Get user by ID
+// @route   GET /api/users/:id
+// @access  Private
+const getUserById = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id).select('-password -realEmail');
+        if (user) {
+            res.json(user);
+        } else {
+            res.status(404).json({ message: 'User not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
     getMe,
+    getUserById,
     updateAvatar,
     updateProfile,
     getAllUsers,
