@@ -1,3 +1,4 @@
+// App.jsx
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -8,7 +9,8 @@ import QA from './pages/QA';
 import Skills from './pages/Skills';
 import CreateSkill from './pages/CreateSkill';
 import SkillDetails from './pages/SkillDetails';
-import StudyGroups from './pages/StudyGroups';
+import StudyGroups from './pages/StudyGroups/StudyGroups';
+import StudyGroupDetails from './pages/StudyGroups/StudyGroupDetails'; // Add this import
 import Clubs from './pages/Clubs';
 import Sports from './pages/Sports';
 import AdminDashboard from './pages/AdminDashboard';
@@ -62,6 +64,7 @@ function App() {
           <Route path="/skills/:id" element={<SkillDetails />} />
           <Route path="/skills/edit/:id" element={<CreateSkill />} />
           <Route path="/groups" element={<StudyGroups />} />
+          <Route path="/study-groups/:id" element={<StudyGroupDetails />} /> {/* Add this route */}
           <Route path="/clubs" element={<Clubs />} />
           <Route path="/sports" element={<Sports />} />
         </Route>
