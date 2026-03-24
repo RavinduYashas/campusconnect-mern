@@ -5,13 +5,16 @@ const {
     getAllSkills,
     getSkillById,
     updateSkill,
-    deleteSkill
+    deleteSkill,
+    replyToSkillRequest
 } = require('../../controllers/peer-skill-exchange/skillController');
 const { protect } = require('../../middleware/authMiddleware');
 
 router.route('/')
     .post(protect, createSkill)
     .get(getAllSkills);
+
+router.post('/reply/:id', protect, replyToSkillRequest);
 
 router.route('/:id')
     .get(getSkillById)

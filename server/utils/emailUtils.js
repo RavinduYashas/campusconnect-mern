@@ -103,12 +103,12 @@ const sendWelcomeEmail = async (email, name, password, role, systemEmail = null)
     }
 };
 
-const sendSkillReplyEmail = async (studentEmail, studentName, expertName, messageContent) => {
+const sendSkillReplyEmail = async (studentEmail, studentName, expertName, skillTitle, message) => {
     console.log('\n=========================================');
-    console.log('       CAMPUSCONNECT SKILL EXCHANGE      ');
-    console.log(`  To          : ${studentEmail}`);
-    console.log(`  Expert      : ${expertName}`);
-    console.log(`  Message     : ${messageContent}`);
+    console.log('       CAMPUSCONNECT SKILL REPLY         ');
+    console.log(`  To: ${studentEmail}`);
+    console.log(`  From Expert: ${expertName}`);
+    console.log(`  Skill Topic: ${skillTitle}`);
     console.log('=========================================\n');
 
     try {
@@ -123,40 +123,45 @@ const sendSkillReplyEmail = async (studentEmail, studentName, expertName, messag
         const mailOptions = {
             from: process.env.EMAIL,
             to: studentEmail,
-            subject: `Expert ${expertName} replied to your Skill Request!`,
+            subject: `Expert Response: Support for ${skillTitle}`,
             html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="color: #2563eb; margin: 0;">CampusConnect Skill Exchange</h2>
-            <p style="color: #6b7280; font-size: 14px; margin-top: 5px;">Connecting Students and Experts</p>
+        <div style="font-family: 'Times New Roman', serif; max-width: 650px; margin: auto; padding: 40px; border: 2px solid #2563eb; border-radius: 4px; color: #1f2937; line-height: 1.6;">
+          <div style="text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px;">
+            <h1 style="color: #2563eb; margin: 0; text-transform: uppercase; letter-spacing: 2px;">CampusConnect</h1>
+            <p style="margin: 5px 0; font-style: italic; color: #6b7280;">Institutional Peer Skill Exchange & Community Events</p>
           </div>
           
+          <div style="margin-bottom: 30px;">
+            <p><strong>To:</strong> ${studentName}</p>
+            <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+            <p><strong>Subject:</strong> Formal Response to Skill Request - "${skillTitle}"</p>
+          </div>
+
           <p>Dear ${studentName},</p>
-          <p>Great news! An expert has responded to your recent skill request.</p>
           
-          <div style="background-color: #f3f4f6; border-left: 4px solid #2563eb; padding: 15px; margin: 20px 0; border-radius: 4px;">
-            <p style="margin: 0 0 10px 0;"><strong>Expert ${expertName} says:</strong></p>
-            <p style="margin: 0; font-style: italic; color: #374151;">"${messageContent}"</p>
+          <p>We are pleased to inform you that a verified expert, <strong>${expertName}</strong>, has reviewed your request for guidance regarding "<strong>${skillTitle}</strong>" and has provided the following professional response:</p>
+          
+          <div style="background-color: #f8fafc; padding: 25px; border-left: 4px solid #2563eb; margin: 25px 0; font-style: italic;">
+            "${message}"
           </div>
+
+          <p>You are encouraged to coordinate your learning schedule directly through the platform or by replying to the expert's institutional contact information.</p>
           
-          <p>Please log in to your CampusConnect dashboard to continue the conversation or view more details.</p>
+          <p>Thank you for engaging with the CampusConnect academic community. We wish you success in your learning endeavors.</p>
           
-          <br/>
-          <p>Best regards,<br/>The CampusConnect Team</p>
-          <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
-          <p style="font-size: 12px; color: #6b7280; text-align: center;">© 2026 CampusConnect. All rights reserved.</p>
+          <div style="margin-top: 50px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+            <p style="margin: 0;">Sincerely,</p>
+            <p style="margin: 5px 0; font-weight: bold; color: #2563eb;">The CampusConnect Academic Module</p>
+            <p style="margin: 0; font-size: 12px; color: #9ca3af;">Official Notification System | University Skill Exchange</p>
+          </div>
         </div>
       `,
         };
 
-        const info = await transporter.sendMail(mailOptions);
-        console.log("Skill Reply Email sent:", info.response);
+        await transporter.sendMail(mailOptions);
         return true;
     } catch (error) {
         console.log("Skill Reply Email error:", error);
-        if (error.code === 'EAUTH' || error.responseCode === 535) {
-            return true;
-        }
         return false;
     }
 };

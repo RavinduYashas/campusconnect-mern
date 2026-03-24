@@ -8,8 +8,8 @@ const Skills = () => {
     const [error, setError] = useState('');
     const [filter, setFilter] = useState('all'); // 'all', 'offer', 'request'
 
-    // Get current user id from local storage
-    const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+    // Handle both 'user' and 'userInfo' local storage formats
+    const userInfo = JSON.parse(localStorage.getItem('user')) || JSON.parse(localStorage.getItem('userInfo'));
     const currentUserId = userInfo ? userInfo._id : null;
 
     useEffect(() => {
@@ -32,7 +32,7 @@ const Skills = () => {
             try {
                 const config = {
                     headers: {
-                        Authorization: `Bearer ${userInfo.token}`,
+                        Authorization: `Bearer ${localStorage.getItem('token')}`,
                     },
                 };
                 await axios.delete(`http://localhost:5000/api/peer-skills/${id}`, config);
@@ -121,6 +121,15 @@ const Skills = () => {
                                 <Link to={`/skills/${skill._id}`} className="text-blue-600 hover:text-blue-800 font-medium text-sm">
                                     View Details
                                 </Link>
+
+                                {userInfo?.role === 'expert' && skill.type === 'request' && (
+                                    <a
+                                        href={`mailto:${skill.createdBy?.email}?subject=Offering Expertise for your Request: ${skill.title}`}
+                                        className="text-green-600 hover:text-green-800 font-bold text-sm bg-green-50 px-3 py-1 rounded-full transition-colors"
+                                    >
+                                        Offer Expertise
+                                    </a>
+                                )}
 
                                 {currentUserId === skill.createdBy?._id && (
                                     <div className="flex space-x-3">
