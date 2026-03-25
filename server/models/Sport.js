@@ -5,6 +5,7 @@ const sportSchema = mongoose.Schema(
         name: { type: String, required: true },
         description: { type: String, default: '' },
         coach: { type: String, default: '' },
+        maxMembers: { type: Number, min: 1 },
         createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
         formerMembers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

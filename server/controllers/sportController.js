@@ -5,9 +5,16 @@ const User = require('../models/User');
 // Create sport/team
 const createSport = async (req, res) => {
     try {
-        const { name, description, coach } = req.body;
+        const { name, description, coach, maxMembers } = req.body;
         if (!name) return res.status(400).json({ message: 'Name is required' });
-        const sport = await Sport.create({ name, description, coach, createdBy: req.user ? req.user._id : undefined });
+        // name must contain only letters and spaces
+        if (!/^[A-Za-z\s]+$/.test(name)) return res.status(400).json({ message: 'Team name may only contain letters and spaces' });
+        let mm;
+        if (typeof maxMembers !== 'undefined' && maxMembers !== null && maxMembers !== '') {
+            mm = parseInt(maxMembers, 10);
+            if (isNaN(mm) || mm < 1) return res.status(400).json({ message: 'maxMembers must be a positive integer' });
+        }
+        const sport = await Sport.create({ name, description, coach, maxMembers: mm, createdBy: req.user ? req.user._id : undefined });
         res.status(201).json(sport);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -43,9 +50,23 @@ const updateSport = async (req, res) => {
         if (req.user.role !== 'admin' && (!sport.createdBy || sport.createdBy.toString() !== req.user._id.toString())) {
             return res.status(403).json({ message: 'Not authorized' });
         }
-        sport.name = req.body.name || sport.name;
+        if (typeof req.body.name !== 'undefined') {
+            if (!/^[A-Za-z\s]+$/.test(req.body.name)) return res.status(400).json({ message: 'Team name may only contain letters and spaces' });
+            sport.name = req.body.name;
+        }
         sport.description = req.body.description || sport.description;
         sport.coach = req.body.coach || sport.coach;
+        if (typeof req.body.maxMembers !== 'undefined') {
+            if (req.body.maxMembers === null || req.body.maxMembers === '') {
+                sport.maxMembers = undefined;
+            } else {
+                const mm = parseInt(req.body.maxMembers, 10);
+                if (isNaN(mm) || mm < 1) return res.status(400).json({ message: 'maxMembers must be a positive integer' });
+                // ensure new maxMembers is not less than current members count
+                if (sport.members && sport.members.length > mm) return res.status(400).json({ message: 'maxMembers cannot be less than current members count' });
+                sport.maxMembers = mm;
+            }
+        }
         if (typeof req.body.isActive === 'boolean') sport.isActive = req.body.isActive;
         const updated = await sport.save();
         res.json(updated);
@@ -77,6 +98,9 @@ const joinSport = async (req, res) => {
         if (!sport) return res.status(404).json({ message: 'Not found' });
         const userId = req.user._id;
         if (sport.members.map(m => m.toString()).includes(userId.toString())) return res.status(400).json({ message: 'Already a member' });
+        if (typeof sport.maxMembers === 'number' && sport.members.length >= sport.maxMembers) {
+            return res.status(400).json({ message: 'Team is full; cannot join' });
+        }
         sport.members.push(userId);
         await sport.save();
         res.json({ message: 'Joined sport' });
@@ -94,6 +118,10 @@ const requestToJoin = async (req, res) => {
 
         // check already member
         if (sport.members.map(m => m.toString()).includes(userId.toString())) return res.status(400).json({ message: 'Already a member' });
+
+        if (typeof sport.maxMembers === 'number' && sport.members.length >= sport.maxMembers) {
+            return res.status(400).json({ message: 'Team is full; cannot request to join' });
+        }
 
         // check existing pending request
         const existing = await SportRequest.findOne({ sport: sport._id, user: userId, status: 'pending' });
@@ -140,6 +168,9 @@ const approveRequest = async (req, res) => {
         // add member
         const userId = request.user;
         if (!sport.members.map(m => m.toString()).includes(userId.toString())) {
+            if (typeof sport.maxMembers === 'number' && sport.members.length >= sport.maxMembers) {
+                return res.status(400).json({ message: 'Team is full; cannot approve request' });
+            }
             sport.members.push(userId);
             await sport.save();
         }
@@ -334,10 +365,15 @@ const bulkAddMembers = async (req, res) => {
             return res.status(403).json({ message: 'Not authorized' });
         }
 
-        const report = { added: [], missing: [], already: [] };
+        const report = { added: [], missing: [], already: [], capacityReached: [] };
         for (const m of members) {
             const email = (m.email || '').toLowerCase().trim();
             if (!email) continue;
+            // stop if capacity reached
+            if (typeof sport.maxMembers === 'number' && sport.members.length >= sport.maxMembers) {
+                report.capacityReached.push(email);
+                continue;
+            }
             const user = await User.findOne({ email });
             if (!user) {
                 report.missing.push(email);

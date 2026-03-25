@@ -6,12 +6,24 @@ const ClubRequest = require('../models/ClubRequest');
 // @access  Private
 const createClub = async (req, res) => {
     try {
-        const { name, description } = req.body;
+        const { name, description, coach, maxMembers } = req.body;
         if (!name) return res.status(400).json({ message: 'Club name is required' });
+        // name must contain only letters and spaces
+        if (!/^[A-Za-z\s]+$/.test(name)) return res.status(400).json({ message: 'Club name may only contain letters and spaces' });
+        if (!coach) return res.status(400).json({ message: 'Coach is required' });
+        if (!/^[A-Za-z\s]+$/.test(coach)) return res.status(400).json({ message: 'Coach may only contain letters and spaces' });
+
+        let mm;
+        if (typeof maxMembers !== 'undefined' && maxMembers !== null && maxMembers !== '') {
+            mm = parseInt(maxMembers, 10);
+            if (isNaN(mm) || mm < 1) return res.status(400).json({ message: 'maxMembers must be a positive integer' });
+        }
 
         const club = await Club.create({
             name,
             description,
+            coach,
+            maxMembers: mm,
             createdBy: req.user ? req.user._id : undefined,
         });
 
@@ -94,8 +106,69 @@ const bulkUpdateClubs = async (req, res) => {
 // Admin: get all clubs including inactive
 const getAllClubs = async (req, res) => {
     try {
-        const clubs = await Club.find({}).populate('createdBy', 'name email avatar');
-        res.json(clubs);
+        // support filtering, search and pagination for admin listing
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const search = (req.query.search || '').trim();
+        const isActive = req.query.isActive;
+        const minMembers = req.query.minMembers ? parseInt(req.query.minMembers) : null;
+
+        const filter = {};
+        if (typeof isActive !== 'undefined') {
+            filter.isActive = isActive === 'true' || isActive === '1' || isActive === true;
+        }
+
+        // If search includes member emails we need to lookup members
+        const pipeline = [];
+        if (Object.keys(filter).length) pipeline.push({ $match: filter });
+
+        // Lookup members for potential email search and for minMembers evaluation
+        pipeline.push({
+            $lookup: {
+                from: 'users',
+                localField: 'members',
+                foreignField: '_id',
+                as: 'members'
+            }
+        });
+
+        if (search) {
+            const re = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+            pipeline.push({
+                $match: {
+                    $or: [
+                        { name: re },
+                        { description: re },
+                        { 'members.email': re }
+                    ]
+                }
+            });
+        }
+
+        if (minMembers) {
+            pipeline.push({ $addFields: { membersCount: { $size: '$members' } } });
+            pipeline.push({ $match: { membersCount: { $gte: minMembers } } });
+        }
+
+        // Count total then paginate
+        const all = await Club.aggregate(pipeline);
+        const total = all.length;
+        const totalPages = Math.max(1, Math.ceil(total / limit));
+        const start = (page - 1) * limit;
+        const dataSlice = all.slice(start, start + limit);
+
+        // populate createdBy for sliced data using mongoose populate on returned docs
+        // convert ids to ObjectId docs by querying those club ids
+        const ids = dataSlice.map(d => d._id);
+        let data = [];
+        if (ids.length) {
+            data = await Club.find({ _id: { $in: ids } }).populate('createdBy', 'name email avatar');
+            // preserve order of dataSlice
+            const byId = new Map(data.map(d => [d._id.toString(), d]));
+            data = ids.map(id => byId.get(id.toString()) || null).filter(Boolean);
+        }
+
+        res.json({ data, meta: { page, limit, total, totalPages } });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -127,8 +200,31 @@ const updateClub = async (req, res) => {
             return res.status(403).json({ message: 'Not authorized to update this club' });
         }
 
-        club.name = req.body.name || club.name;
+        if (typeof req.body.name !== 'undefined') {
+            if (!/^[A-Za-z\s]+$/.test(req.body.name)) return res.status(400).json({ message: 'Club name may only contain letters and spaces' });
+            club.name = req.body.name;
+        }
+
         club.description = req.body.description || club.description;
+
+        if (typeof req.body.coach !== 'undefined') {
+            if (!req.body.coach) return res.status(400).json({ message: 'Coach is required' });
+            if (!/^[A-Za-z\s]+$/.test(req.body.coach)) return res.status(400).json({ message: 'Coach may only contain letters and spaces' });
+            club.coach = req.body.coach;
+        }
+
+        if (typeof req.body.maxMembers !== 'undefined') {
+            if (req.body.maxMembers === null || req.body.maxMembers === '') {
+                club.maxMembers = undefined;
+            } else {
+                const mm = parseInt(req.body.maxMembers, 10);
+                if (isNaN(mm) || mm < 1) return res.status(400).json({ message: 'maxMembers must be a positive integer' });
+                // ensure new maxMembers is not less than current members count
+                if (club.members && club.members.length > mm) return res.status(400).json({ message: 'maxMembers cannot be less than current members count' });
+                club.maxMembers = mm;
+            }
+        }
+
         if (typeof req.body.isActive === 'boolean') club.isActive = req.body.isActive;
 
         const updated = await club.save();
@@ -171,6 +267,9 @@ const joinClub = async (req, res) => {
             return res.status(400).json({ message: 'Already a member' });
         }
 
+        if (typeof club.maxMembers === 'number' && club.members.length >= club.maxMembers) {
+            return res.status(400).json({ message: 'Club is full; cannot join' });
+        }
         club.members.push(userId);
         await club.save();
         res.json({ message: 'Joined club' });
@@ -187,6 +286,10 @@ const requestToJoin = async (req, res) => {
         const userId = req.user._id;
 
         if (club.members.map(m => m.toString()).includes(userId.toString())) return res.status(400).json({ message: 'Already a member' });
+
+        if (typeof club.maxMembers === 'number' && club.members.length >= club.maxMembers) {
+            return res.status(400).json({ message: 'Club is full; cannot request to join' });
+        }
 
         const existing = await ClubRequest.findOne({ club: club._id, user: userId, status: 'pending' });
         if (existing) return res.status(400).json({ message: 'Join request already pending' });
@@ -231,6 +334,9 @@ const approveRequest = async (req, res) => {
 
         const userId = request.user;
         if (!club.members.map(m => m.toString()).includes(userId.toString())) {
+            if (typeof club.maxMembers === 'number' && club.members.length >= club.maxMembers) {
+                return res.status(400).json({ message: 'Club is full; cannot approve request' });
+            }
             club.members.push(userId);
             await club.save();
         }
@@ -303,6 +409,11 @@ const activateMember = async (req, res) => {
         // If already a member, nothing to do
         if (club.members.map(m => m.toString()).includes(memberId.toString())) {
             return res.status(400).json({ message: 'User already an active member' });
+        }
+
+        // capacity check
+        if (typeof club.maxMembers === 'number' && club.members.length >= club.maxMembers) {
+            return res.status(400).json({ message: 'Club is full; cannot activate member' });
         }
 
         // Remove from formerMembers and add back to members
