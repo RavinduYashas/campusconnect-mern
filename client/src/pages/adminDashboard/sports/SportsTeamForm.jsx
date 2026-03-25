@@ -2,31 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 
-const formatDateInput = (value) => {
-    if (!value) return '';
-    const date = new Date(value);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
-
-const formatTimeInput = (value) => {
-    if (!value) return '';
-    const date = new Date(value);
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-};
-
-const getTodayMinDate = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
-
 const SportsTeamForm = ({ team = null, onSaved, onCancel }) => {
     const [loading, setLoading] = useState(false);
 
@@ -34,9 +9,6 @@ const SportsTeamForm = ({ team = null, onSaved, onCancel }) => {
         name: Yup.string()
             .required('Name is required')
             .matches(/^[A-Za-z\s]+$/, 'Name may only contain letters and spaces'),
-        sportType: Yup.string()
-            .required('Sport Type is required')
-            .matches(/^[A-Za-z\s]+$/, 'Sport Type may only contain letters and spaces'),
         coach: Yup.string()
             .required('Coach is required')
             .matches(/^[A-Za-z\s]+$/, 'Coach may only contain letters and spaces'),
@@ -47,29 +19,17 @@ const SportsTeamForm = ({ team = null, onSaved, onCancel }) => {
         enableReinitialize: true,
         initialValues: {
             name: team?.name || '',
-            sportType: team?.sportType || '',
             description: team?.description || '',
             coach: team?.coach || '',
-            maxMembers: team?.maxMembers || '',
-            sessionDate: formatDateInput(team?.nextSession?.date),
-            sessionTime: formatTimeInput(team?.nextSession?.date),
-            sessionLocation: team?.nextSession?.location || '',
-            sessionDescription: team?.nextSession?.description || ''
+            maxMembers: team?.maxMembers || ''
         },
         validationSchema,
         onSubmit: async (values) => {
             setLoading(true);
             const token = localStorage.getItem('token');
             try {
-                const payload = { name: values.name, sportType: values.sportType, description: values.description, coach: values.coach };
+                const payload = { name: values.name, description: values.description, coach: values.coach };
                 if (values.maxMembers !== null && values.maxMembers !== '') payload.maxMembers = Number(values.maxMembers);
-                if (values.sessionDate && values.sessionTime) {
-                    payload.nextSession = {
-                        date: `${values.sessionDate}T${values.sessionTime}`,
-                        location: values.sessionLocation || '',
-                        description: values.sessionDescription || ''
-                    };
-                }
                 let res;
                 if (team && (team._id || team.id)) {
                     const id = team._id || team.id;
@@ -101,67 +61,26 @@ const SportsTeamForm = ({ team = null, onSaved, onCancel }) => {
             <h2 className="text-xl font-bold mb-4">{team ? 'Edit Team' : 'Create Team'}</h2>
             <form onSubmit={formik.handleSubmit} className="space-y-4" noValidate>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700">Name</label>
-                    <input name="name" value={formik.values.name} onChange={formik.handleChange} onBlur={formik.handleBlur} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" placeholder="e.g. Tigers" />
-                    {formik.touched.name && formik.errors.name && <div className="text-xs text-red-600 mt-1 font-medium">{formik.errors.name}</div>}
+                    <label className="block text-sm font-medium">Name</label>
+                    <input name="name" value={formik.values.name} onChange={formik.handleChange} onBlur={formik.handleBlur} className="mt-1 block w-full border rounded-md p-2" />
+                    {formik.touched.name && formik.errors.name && <div className="text-xs text-red-600 mt-1">{formik.errors.name}</div>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700">Sport Type</label>
-                    <select name="sportType" value={formik.values.sportType || ""} onChange={formik.handleChange} onBlur={formik.handleBlur} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A] bg-white text-gray-800">
-                        <option value="" disabled>Select a sport...</option>
-                        <option value="General">General / Athletics</option>
-                        <option value="Football">Football</option>
-                        <option value="Cricket">Cricket</option>
-                        <option value="Basketball">Basketball</option>
-                        <option value="Badminton">Badminton</option>
-                        <option value="Tennis">Tennis</option>
-                        <option value="Volleyball">Volleyball</option>
-                        <option value="Athletics">Athletics</option>
-                        <option value="Swimming">Swimming</option>
-                        <option value="Table Tennis">Table Tennis</option>
-                        <option value="Other">Other</option>
-                    </select>
-                    {formik.touched.sportType && formik.errors.sportType && <div className="text-xs text-red-600 mt-1 font-medium">{formik.errors.sportType}</div>}
+                    <label className="block text-sm font-medium">Max Members</label>
+                    <input name="maxMembers" value={formik.values.maxMembers} onChange={formik.handleChange} onBlur={formik.handleBlur} type="number" min={1} className="mt-1 block w-full border rounded-md p-2" placeholder="Leave empty for unlimited" />
+                    {formik.touched.maxMembers && formik.errors.maxMembers && <div className="text-xs text-red-600 mt-1">{formik.errors.maxMembers}</div>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700">Max Members</label>
-                    <input name="maxMembers" value={formik.values.maxMembers} onChange={formik.handleChange} onBlur={formik.handleBlur} type="number" min={1} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" placeholder="Leave empty for unlimited" />
-                    {formik.touched.maxMembers && formik.errors.maxMembers && <div className="text-xs text-red-600 mt-1 font-medium">{formik.errors.maxMembers}</div>}
+                    <label className="block text-sm font-medium">Coach</label>
+                    <input name="coach" value={formik.values.coach} onChange={formik.handleChange} onBlur={formik.handleBlur} className="mt-1 block w-full border rounded-md p-2" />
+                    {formik.touched.coach && formik.errors.coach && <div className="text-xs text-red-600 mt-1">{formik.errors.coach}</div>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700">Coach</label>
-                    <input name="coach" value={formik.values.coach} onChange={formik.handleChange} onBlur={formik.handleBlur} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" placeholder="e.g. John Doe" />
-                    {formik.touched.coach && formik.errors.coach && <div className="text-xs text-red-600 mt-1 font-medium">{formik.errors.coach}</div>}
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700">Description</label>
-                    <textarea name="description" value={formik.values.description} onChange={formik.handleChange} onBlur={formik.handleBlur} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" rows={4} placeholder="Enter team description..." />
-                </div>
-
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                    <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">📅 Next Training Session <span className="text-xs font-normal text-gray-500">(optional)</span></h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Date</label>
-                            <input name="sessionDate" type="date" min={getTodayMinDate()} value={formik.values.sessionDate} onChange={formik.handleChange} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Time</label>
-                            <input name="sessionTime" type="time" value={formik.values.sessionTime} onChange={formik.handleChange} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" />
-                        </div>
-                    </div>
-                    <div className="mt-3">
-                        <label className="block text-sm font-medium text-gray-700">Location</label>
-                        <input name="sessionLocation" value={formik.values.sessionLocation} onChange={formik.handleChange} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" placeholder="e.g. Indoor Court A" />
-                    </div>
-                    <div className="mt-3">
-                        <label className="block text-sm font-medium text-gray-700">Session Description</label>
-                        <input name="sessionDescription" value={formik.values.sessionDescription} onChange={formik.handleChange} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" placeholder="e.g. Weekly practice match" />
-                    </div>
+                    <label className="block text-sm font-medium">Description</label>
+                    <textarea name="description" value={formik.values.description} onChange={formik.handleChange} onBlur={formik.handleBlur} className="mt-1 block w-full border rounded-md p-2" rows={4} />
                 </div>
 
                 <div className="flex gap-2 justify-end">
