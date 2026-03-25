@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createClub, getClubs, getClub, updateClub, deleteClub, joinClub, requestToJoin, getRequests, approveRequest, rejectRequest, removeMember, activateMember, getAllMembers, getAllClubs, activateClub } = require('../controllers/clubController');
+const { createClub, getClubs, getClub, updateClub, deleteClub, joinClub, requestToJoin, getRequests, approveRequest, rejectRequest, removeMember, activateMember, getAllMembers, getAllClubs, activateClub, bulkUpdateClubs } = require('../controllers/clubController');
 const { protect, optionalProtect } = require('../middleware/authMiddleware');
 const { roleAuthorize } = require('../middleware/roleMiddleware');
 
