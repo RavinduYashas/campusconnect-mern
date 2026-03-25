@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -85,8 +84,12 @@ app.use('/api/clubs', require('./routes/clubRoutes'));
 app.use('/api/sports', require('./routes/sportRoutes'));
 app.use('/api/qa', require('./routes/QA/qaRoutes'));
 app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
+<<<<<<< HEAD
 app.use('/api/study-groups', require('./routes/StudyGroups/StudyGroups'));
 app.use('/api/workshops', require('./routes/Workshops/Workshops'));
+app.use('/api/study-buddy', require('./routes/StudyGroups/StudyBuddyRoutes'));
+=======
+>>>>>>> aa01aab (gj)
 
 // ========== DEBUG ROUTES ==========
 app.get('/api/test', (req, res) => {
@@ -98,7 +101,7 @@ app.use('/api', (req, res) => {
     res.status(404).json({ message: `API route not found: ${req.method} ${req.originalUrl}` });
 });
 
-// Print registered API routes for debugging
+// Print registered API routes for debugging (call after all routes registered)
 const listRoutes = () => {
     try {
         const routes = [];
@@ -136,10 +139,13 @@ const listRoutes = () => {
 
 listRoutes();
 <<<<<<< HEAD
+<<<<<<< HEAD
 app.use('/api/qa', require('./routes/QA/qaRoutes'));
 app.use('/api/notifications', require('./routes/QA/notificationRoutes')); // Add notification routes
 =======
 >>>>>>> 8052454 (V3)
+=======
+>>>>>>> aa01aab (gj)
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

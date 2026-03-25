@@ -179,7 +179,10 @@ const getAllClubs = async (req, res) => {
 // @access  Public
 const getClub = async (req, res) => {
     try {
-        const club = await Club.findById(req.params.id).populate('members', 'name email avatar').populate('formerMembers', 'name email avatar');
+        const club = await Club.findById(req.params.id)
+            .populate('members', 'name email avatar')
+            .populate('formerMembers', 'name email avatar')
+            .populate('waitlist', 'name email avatar');
         if (!club) return res.status(404).json({ message: 'Club not found' });
         res.json(club);
     } catch (error) {
@@ -228,6 +231,21 @@ const updateClub = async (req, res) => {
         if (typeof req.body.isActive === 'boolean') club.isActive = req.body.isActive;
 
         const updated = await club.save();
+
+        // If maxMembers increased or space available, promote from waitlist
+        if (updated.waitlist && updated.waitlist.length && (typeof updated.maxMembers !== 'number' || updated.members.length < updated.maxMembers)) {
+            // reload to operate on arrays
+            const fresh = await Club.findById(updated._id);
+            while (fresh.waitlist && fresh.waitlist.length && (typeof fresh.maxMembers !== 'number' || fresh.members.length < fresh.maxMembers)) {
+                const nextUser = fresh.waitlist.shift();
+                if (!fresh.members.map(m => m.toString()).includes(nextUser.toString())) {
+                    fresh.members.push(nextUser);
+                    await ClubRequest.findOneAndUpdate({ club: fresh._id, user: nextUser, status: 'waitlisted' }, { status: 'approved' });
+                }
+            }
+            await fresh.save();
+        }
+
         res.json(updated);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -267,8 +285,17 @@ const joinClub = async (req, res) => {
             return res.status(400).json({ message: 'Already a member' });
         }
 
+        // Only admins may directly add a member. Other users must submit a join request.
+        if (!req.user || req.user.role !== 'admin') {
+            const existing = await ClubRequest.findOne({ club: club._id, user: userId, status: { $in: ['pending','waitlisted'] } });
+            if (existing) return res.status(400).json({ message: 'Join request already pending or waitlisted' });
+            const reqDoc = await ClubRequest.create({ club: club._id, user: userId, message: req.body.message || '' });
+            return res.status(201).json({ message: 'Request submitted; pending admin approval', request: reqDoc });
+        }
+
+        // Admin immediate add (respect capacity)
         if (typeof club.maxMembers === 'number' && club.members.length >= club.maxMembers) {
-            return res.status(400).json({ message: 'Club is full; cannot join' });
+            return res.status(400).json({ message: 'Club is full; cannot join even as admin' });
         }
         club.members.push(userId);
         await club.save();
@@ -287,12 +314,8 @@ const requestToJoin = async (req, res) => {
 
         if (club.members.map(m => m.toString()).includes(userId.toString())) return res.status(400).json({ message: 'Already a member' });
 
-        if (typeof club.maxMembers === 'number' && club.members.length >= club.maxMembers) {
-            return res.status(400).json({ message: 'Club is full; cannot request to join' });
-        }
-
-        const existing = await ClubRequest.findOne({ club: club._id, user: userId, status: 'pending' });
-        if (existing) return res.status(400).json({ message: 'Join request already pending' });
+        const existing = await ClubRequest.findOne({ club: club._id, user: userId, status: { $in: ['pending','waitlisted'] } });
+        if (existing) return res.status(400).json({ message: 'Join request already pending or waitlisted' });
 
         const reqDoc = await ClubRequest.create({ club: club._id, user: userId, message: req.body.message || '' });
         res.status(201).json({ message: 'Request submitted', request: reqDoc });
@@ -311,13 +334,67 @@ const getRequests = async (req, res) => {
             return res.status(403).json({ message: 'Not authorized' });
         }
 
-        const requests = await ClubRequest.find({ club: club._id, status: 'pending' }).populate('user', 'name email avatar');
+        const requests = await ClubRequest.find({ club: club._id, status: { $in: ['pending', 'waitlisted'] } }).populate('user', 'name email avatar');
         res.json(requests);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
 
+// @desc    Get current user's pending/waitlisted requests across clubs
+// @route   GET /api/clubs/requests/my
+// @access  Private
+const getMyRequests = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const requests = await ClubRequest.find({ user: userId, status: { $in: ['pending', 'waitlisted'] } })
+            .populate('club', 'name coach')
+            .sort('-createdAt');
+        res.json(requests);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// @desc    Cancel current user's pending or waitlisted request
+// @route   DELETE /api/clubs/requests/:reqId
+// @access  Private
+const cancelRequest = async (req, res) => {
+    try {
+        const reqId = req.params.reqId;
+        const request = await ClubRequest.findById(reqId);
+        if (!request) return res.status(404).json({ message: 'Request not found' });
+        if (request.user.toString() !== req.user._id.toString()) return res.status(403).json({ message: 'Not authorized to cancel this request' });
+        if (!['pending', 'waitlisted'].includes(request.status)) return res.status(400).json({ message: 'Cannot cancel a handled request' });
+
+        // If waitlisted, remove the user from the club waitlist
+        if (request.status === 'waitlisted') {
+            const Club = require('../models/Club');
+            await Club.findByIdAndUpdate(request.club, { $pull: { waitlist: request.user } });
+        }
+
+        request.status = 'rejected';
+        await request.save();
+        res.json({ message: 'Request cancelled' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Admin: get all pending or waitlisted requests across clubs
+// @route   GET /api/clubs/admin/requests
+// @access  Private/Admin
+const getAllRequests = async (req, res) => {
+    try {
+        const requests = await ClubRequest.find({ status: { $in: ['pending', 'waitlisted'] } })
+            .populate('user', 'name email avatar')
+            .populate('club', 'name coach')
+            .sort('-createdAt');
+        res.json(requests);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
 // Approve request
 const approveRequest = async (req, res) => {
     try {
@@ -330,12 +407,20 @@ const approveRequest = async (req, res) => {
         }
 
         const request = await ClubRequest.findById(reqId);
-        if (!request || request.status !== 'pending') return res.status(404).json({ message: 'Request not found or already handled' });
+        if (!request || request.status === 'rejected') return res.status(404).json({ message: 'Request not found or already rejected' });
 
         const userId = request.user;
         if (!club.members.map(m => m.toString()).includes(userId.toString())) {
             if (typeof club.maxMembers === 'number' && club.members.length >= club.maxMembers) {
-                return res.status(400).json({ message: 'Club is full; cannot approve request' });
+                // add to waitlist instead of failing
+                if (!club.waitlist) club.waitlist = [];
+                if (!club.waitlist.map(w => w.toString()).includes(userId.toString())) {
+                    club.waitlist.push(userId);
+                }
+                request.status = 'waitlisted';
+                await club.save();
+                await request.save();
+                return res.json({ message: 'Club full; request moved to waitlist' });
             }
             club.members.push(userId);
             await club.save();
@@ -388,6 +473,20 @@ const removeMember = async (req, res) => {
         if (wasMember && !club.formerMembers.map(f => f.toString()).includes(memberId.toString())) {
             club.formerMembers.push(memberId);
         }
+
+        // After removal, try to promote from waitlist if space available
+        if (club.waitlist && club.waitlist.length && (typeof club.maxMembers !== 'number' || club.members.length < club.maxMembers)) {
+            // promote as many as possible
+            while (club.waitlist.length && (typeof club.maxMembers !== 'number' || club.members.length < club.maxMembers)) {
+                const nextUser = club.waitlist.shift();
+                if (!club.members.map(m => m.toString()).includes(nextUser.toString())) {
+                    club.members.push(nextUser);
+                    // update any existing ClubRequest to approved
+                    await ClubRequest.findOneAndUpdate({ club: club._id, user: nextUser, status: 'waitlisted' }, { status: 'approved' });
+                }
+            }
+        }
+
         await club.save();
         res.json({ message: 'Member removed (deactivated in club)' });
     } catch (error) {
@@ -483,6 +582,9 @@ module.exports = {
     getRequests,
     approveRequest,
     rejectRequest,
+    getMyRequests,
+    cancelRequest,
+    getAllRequests,
     removeMember,
     // admin helper
     activateMember,
