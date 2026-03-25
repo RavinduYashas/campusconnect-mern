@@ -5,7 +5,7 @@ const sportRequestSchema = mongoose.Schema(
         sport: { type: mongoose.Schema.Types.ObjectId, ref: 'Sport', required: true },
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
         message: { type: String, default: '' },
-        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+        status: { type: String, enum: ['pending', 'approved', 'rejected', 'waitlisted'], default: 'pending' },
     },
     { timestamps: true }
 );

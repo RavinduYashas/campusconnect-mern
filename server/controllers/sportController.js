@@ -34,7 +34,10 @@ const getSports = async (req, res) => {
 // Get single sport
 const getSport = async (req, res) => {
     try {
-        const sport = await Sport.findById(req.params.id).populate('members', 'name email avatar').populate('formerMembers', 'name email avatar');
+        const sport = await Sport.findById(req.params.id)
+            .populate('members', 'name email avatar')
+            .populate('formerMembers', 'name email avatar')
+            .populate('waitlist', 'name email avatar');
         if (!sport) return res.status(404).json({ message: 'Not found' });
         res.json(sport);
     } catch (err) {
@@ -69,6 +72,20 @@ const updateSport = async (req, res) => {
         }
         if (typeof req.body.isActive === 'boolean') sport.isActive = req.body.isActive;
         const updated = await sport.save();
+
+        // If space available after update, promote from waitlist
+        if (updated.waitlist && updated.waitlist.length && (typeof updated.maxMembers !== 'number' || updated.members.length < updated.maxMembers)) {
+            const fresh = await Sport.findById(updated._id);
+            while (fresh.waitlist && fresh.waitlist.length && (typeof fresh.maxMembers !== 'number' || fresh.members.length < fresh.maxMembers)) {
+                const nextUser = fresh.waitlist.shift();
+                if (!fresh.members.map(m => m.toString()).includes(nextUser.toString())) {
+                    fresh.members.push(nextUser);
+                    await SportRequest.findOneAndUpdate({ sport: fresh._id, user: nextUser, status: 'waitlisted' }, { status: 'approved' });
+                }
+            }
+            await fresh.save();
+        }
+
         res.json(updated);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -98,8 +115,18 @@ const joinSport = async (req, res) => {
         if (!sport) return res.status(404).json({ message: 'Not found' });
         const userId = req.user._id;
         if (sport.members.map(m => m.toString()).includes(userId.toString())) return res.status(400).json({ message: 'Already a member' });
+
+        // Non-admins submit a request instead of immediate join
+        if (!req.user || req.user.role !== 'admin') {
+            const existing = await SportRequest.findOne({ sport: sport._id, user: userId, status: 'pending' });
+            if (existing) return res.status(400).json({ message: 'Join request already pending' });
+            const reqDoc = await SportRequest.create({ sport: sport._id, user: userId, message: req.body.message || '' });
+            return res.status(201).json({ message: 'Request submitted; pending admin approval', request: reqDoc });
+        }
+
+        // Admin immediate add
         if (typeof sport.maxMembers === 'number' && sport.members.length >= sport.maxMembers) {
-            return res.status(400).json({ message: 'Team is full; cannot join' });
+            return res.status(400).json({ message: 'Team is full; cannot join even as admin' });
         }
         sport.members.push(userId);
         await sport.save();
@@ -119,12 +146,8 @@ const requestToJoin = async (req, res) => {
         // check already member
         if (sport.members.map(m => m.toString()).includes(userId.toString())) return res.status(400).json({ message: 'Already a member' });
 
-        if (typeof sport.maxMembers === 'number' && sport.members.length >= sport.maxMembers) {
-            return res.status(400).json({ message: 'Team is full; cannot request to join' });
-        }
-
-        // check existing pending request
-        const existing = await SportRequest.findOne({ sport: sport._id, user: userId, status: 'pending' });
+            // check existing pending request
+            const existing = await SportRequest.findOne({ sport: sport._id, user: userId, status: 'pending' });
         if (existing) return res.status(400).json({ message: 'Join request already pending' });
 
         const reqDoc = await SportRequest.create({ sport: sport._id, user: userId, message: req.body.message || '' });
@@ -145,7 +168,7 @@ const getRequests = async (req, res) => {
             return res.status(403).json({ message: 'Not authorized' });
         }
 
-        const requests = await SportRequest.find({ sport: sport._id, status: 'pending' }).populate('user', 'name email avatar');
+        const requests = await SportRequest.find({ sport: sport._id, status: { $in: ['pending', 'waitlisted'] } }).populate('user', 'name email avatar');
         res.json(requests);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -169,7 +192,15 @@ const approveRequest = async (req, res) => {
         const userId = request.user;
         if (!sport.members.map(m => m.toString()).includes(userId.toString())) {
             if (typeof sport.maxMembers === 'number' && sport.members.length >= sport.maxMembers) {
-                return res.status(400).json({ message: 'Team is full; cannot approve request' });
+                // add to waitlist instead
+                if (!sport.waitlist) sport.waitlist = [];
+                if (!sport.waitlist.map(w => w.toString()).includes(userId.toString())) {
+                    sport.waitlist.push(userId);
+                }
+                request.status = 'waitlisted';
+                await sport.save();
+                await request.save();
+                return res.json({ message: 'Team full; request moved to waitlist' });
             }
             sport.members.push(userId);
             await sport.save();
@@ -222,6 +253,18 @@ const removeMember = async (req, res) => {
         if (wasMember && !sport.formerMembers.map(f => f.toString()).includes(memberId.toString())) {
             sport.formerMembers.push(memberId);
         }
+
+        // After removal, try to promote from waitlist if space available
+        if (sport.waitlist && sport.waitlist.length && (typeof sport.maxMembers !== 'number' || sport.members.length < sport.maxMembers)) {
+            while (sport.waitlist.length && (typeof sport.maxMembers !== 'number' || sport.members.length < sport.maxMembers)) {
+                const nextUser = sport.waitlist.shift();
+                if (!sport.members.map(m => m.toString()).includes(nextUser.toString())) {
+                    sport.members.push(nextUser);
+                    await SportRequest.findOneAndUpdate({ sport: sport._id, user: nextUser, status: 'waitlisted' }, { status: 'approved' });
+                }
+            }
+        }
+
         await sport.save();
         res.json({ message: 'Member removed (deactivated in team)' });
     } catch (err) {
@@ -240,6 +283,11 @@ const activateMember = async (req, res) => {
         }
 
         if (sport.members.map(m => m.toString()).includes(memberId.toString())) return res.status(400).json({ message: 'Already a member' });
+
+        // capacity check
+        if (typeof sport.maxMembers === 'number' && sport.members.length >= sport.maxMembers) {
+            return res.status(400).json({ message: 'Team is full; cannot activate member' });
+        }
 
         sport.formerMembers = (sport.formerMembers || []).filter(f => f.toString() !== memberId.toString());
         sport.members.push(memberId);

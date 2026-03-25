@@ -1,11 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const { createClub, getClubs, getClub, updateClub, deleteClub, joinClub, requestToJoin, getRequests, approveRequest, rejectRequest, removeMember, activateMember, getAllMembers, getAllClubs, activateClub, bulkUpdateClubs } = require('../controllers/clubController');
+const { createClub, getClubs, getClub, updateClub, deleteClub, joinClub, requestToJoin, getRequests, approveRequest, rejectRequest, removeMember, activateMember, getAllMembers, getAllClubs, activateClub, bulkUpdateClubs, getMyRequests, cancelRequest, getAllRequests } = require('../controllers/clubController');
 const { protect, optionalProtect } = require('../middleware/authMiddleware');
 const { roleAuthorize } = require('../middleware/roleMiddleware');
 
 // allow optional auth so admins see all clubs while keeping public access for non-auth users
 router.get('/', optionalProtect, getClubs);
+// user endpoints for their own requests (place before '/:id' to avoid collision)
+router.get('/requests/my', protect, getMyRequests);
+router.delete('/requests/:reqId', protect, cancelRequest);
+// admin aggregated requests for quick approval
+router.get('/admin/requests', protect, roleAuthorize('admin'), getAllRequests);
 // bulk actions
 router.post('/bulk', protect, roleAuthorize('admin'), bulkUpdateClubs);
 // Admin: aggregated members view

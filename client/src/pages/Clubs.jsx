@@ -21,7 +21,9 @@ const sampleFeaturesRight = [
 const Clubs = () => {
     const navigate = useNavigate();
     const [clubs, setClubs] = useState([]);
+    const [userRequests, setUserRequests] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadingRequests, setLoadingRequests] = useState(false);
 
     useEffect(() => {
         // Attempt to fetch clubs from backend if available. If endpoint is missing,
@@ -31,7 +33,9 @@ const Clubs = () => {
                 const res = await fetch('/api/clubs');
                 if (!res.ok) throw new Error('no-clubs-endpoint');
                 const data = await res.json();
-                setClubs(data);
+                // API may return { data, meta } for paginated admin endpoints
+                if (data && data.data) setClubs(data.data);
+                else setClubs(Array.isArray(data) ? data : []);
                 } catch (err) {
                 // fallback demo data
                 setClubs([
@@ -45,6 +49,26 @@ const Clubs = () => {
         };
 
         fetchClubs();
+        // fetch user's pending/waitlisted requests if logged in
+        const fetchMyRequests = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            setLoadingRequests(true);
+            try {
+                const res = await fetch('/api/clubs/requests/my', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error('no-requests');
+                const data = await res.json();
+                setUserRequests(Array.isArray(data) ? data : []);
+            } catch (err) {
+                setUserRequests([]);
+            } finally {
+                setLoadingRequests(false);
+            }
+        };
+
+        fetchMyRequests();
     }, []);
 
     return (
@@ -80,6 +104,45 @@ const Clubs = () => {
                 </section>
 
                 <section className="col-span-full mt-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100" id="club-list">
+                    {userRequests && userRequests.length > 0 && (
+                        <div className="mb-4">
+                            <h3 className="text-xl font-semibold mb-2">Your Pending Requests</h3>
+                            <div className="space-y-2">
+                                {userRequests.map((r) => (
+                                    <div key={r._id || r.id} className="p-3 border rounded-md flex items-center justify-between">
+                                        <div>
+                                            <div className="font-medium">{r.club?.name || 'Unknown Club'}</div>
+                                            <div className="text-sm text-gray-500">{r.status}</div>
+                                        </div>
+                                        <div>
+                                            <button
+                                                className="btn-sm btn-outline mr-2"
+                                                onClick={async () => {
+                                                    const token = localStorage.getItem('token');
+                                                    if (!token) return alert('Please login');
+                                                    try {
+                                                        const res = await fetch(`/api/clubs/requests/${r._id}`, {
+                                                            method: 'DELETE',
+                                                            headers: { Authorization: `Bearer ${token}` }
+                                                        });
+                                                        const body = await res.json();
+                                                        if (!res.ok) throw new Error(body.message || 'Could not cancel');
+                                                        // remove from local list
+                                                        setUserRequests(prev => prev.filter(x => (x._id || x.id) !== (r._id || r.id)));
+                                                        alert(body.message || 'Request cancelled');
+                                                    } catch (err) {
+                                                        alert(err.message || 'Cancel failed');
+                                                    }
+                                                }}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                     <h3 className="text-2xl font-bold mb-3">Available Clubs</h3>
                     {loading ? (
                         <p className="text-text-secondary">Loading clubs...</p>
@@ -108,6 +171,17 @@ const Clubs = () => {
                                                         const body = await res.json();
                                                         if (!res.ok) throw new Error(body.message || 'Could not join');
                                                         alert(body.message || 'Joined club');
+                                                        // refresh user's requests if any
+                                                        try {
+                                                            const token = localStorage.getItem('token');
+                                                            if (token) {
+                                                                const rres = await fetch('/api/clubs/requests/my', { headers: { Authorization: `Bearer ${token}` } });
+                                                                if (rres.ok) {
+                                                                    const rdata = await rres.json();
+                                                                    setUserRequests(Array.isArray(rdata) ? rdata : []);
+                                                                }
+                                                            }
+                                                        } catch (e) { /* ignore */ }
                                                     } catch (err) {
                                                         alert(err.message || 'Join failed');
                                                     }

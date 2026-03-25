@@ -10,6 +10,7 @@ const ClubList = () => {
     const [members, setMembers] = useState([]);
     const [formerMembers, setFormerMembers] = useState([]);
     const [requests, setRequests] = useState([]);
+    const [adminRequests, setAdminRequests] = useState([]);
     const [showAllMembers, setShowAllMembers] = useState(false);
     const [allMembers, setAllMembers] = useState([]);
     const [allMembersError, setAllMembersError] = useState('');
@@ -102,6 +103,23 @@ const ClubList = () => {
     };
 
     useEffect(() => { loadClubs(); }, [page, limit, searchTerm, filterIsActive, minMembers]);
+
+    useEffect(() => {
+        // load global admin requests for quick approvals
+        const fetchAdminRequests = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            try {
+                const res = await fetch('/api/clubs/admin/requests', { headers: { Authorization: `Bearer ${token}` } });
+                if (!res.ok) return setAdminRequests([]);
+                const data = await res.json();
+                setAdminRequests(Array.isArray(data) ? data : []);
+            } catch (e) {
+                setAdminRequests([]);
+            }
+        };
+        fetchAdminRequests();
+    }, [/* refresh when clubs list changes */ page, limit]);
 
     const handleCreate = () => { setEditing(null); setShowForm(true); };
     const handleEdit = (club) => { setEditing(club); setShowForm(true); };
@@ -298,6 +316,51 @@ const ClubList = () => {
                 <div>Loading clubs...</div>
             ) : (
                 <>
+                    {/* Admin quick-approval panel */}
+                    {adminRequests && adminRequests.length > 0 && (
+                        <div className="mb-4 bg-white p-4 rounded-lg border">
+                            <h4 className="font-semibold mb-2">Pending Requests (All Clubs)</h4>
+                            <ul className="space-y-2">
+                                {adminRequests.map(r => (
+                                    <li key={r._id} className="flex items-center justify-between">
+                                        <div>
+                                            <div className="font-medium">{r.user?.name} — <span className="text-sm text-text-secondary">{r.user?.email}</span></div>
+                                            <div className="text-sm">Club: {r.club?.name || '—'}</div>
+                                            {r.message && <div className="text-xs mt-1">"{r.message}"</div>}
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <div className="text-xs text-text-secondary mr-2">{r.status}</div>
+                                            <button onClick={async () => {
+                                                try {
+                                                    const token = localStorage.getItem('token');
+                                                    const res = await fetch(`/api/clubs/${r.club._id}/requests/${r._id}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+                                                    const body = await res.json();
+                                                    if (!res.ok) throw new Error(body.message || 'Approve failed');
+                                                    alert(body.message || 'Approved');
+                                                    // refresh both lists
+                                                    loadClubs();
+                                                    const rres = await fetch('/api/clubs/admin/requests', { headers: { Authorization: `Bearer ${token}` } });
+                                                    if (rres.ok) setAdminRequests(await rres.json());
+                                                } catch (err) { alert(err.message || 'Approve failed'); }
+                                            }} className="btn-primary text-sm">Approve</button>
+                                            <button onClick={async () => {
+                                                try {
+                                                    const token = localStorage.getItem('token');
+                                                    const res = await fetch(`/api/clubs/${r.club._id}/requests/${r._id}/reject`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+                                                    const body = await res.json();
+                                                    if (!res.ok) throw new Error(body.message || 'Reject failed');
+                                                    alert(body.message || 'Rejected');
+                                                    loadClubs();
+                                                    const rres = await fetch('/api/clubs/admin/requests', { headers: { Authorization: `Bearer ${token}` } });
+                                                    if (rres.ok) setAdminRequests(await rres.json());
+                                                } catch (err) { alert(err.message || 'Reject failed'); }
+                                            }} className="btn-outline text-sm">Reject</button>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                     <div className="mb-2 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <label className="flex items-center gap-2">
@@ -412,6 +475,7 @@ const ClubList = () => {
                                                 {r.message && <div className="text-xs mt-1">"{r.message}"</div>}
                                             </div>
                                             <div className="flex gap-2">
+                                                <div className="text-xs text-text-secondary mr-2">{r.status}</div>
                                                 <button onClick={() => approve(r._id)} className="btn-primary text-sm">Approve</button>
                                                 <button onClick={() => reject(r._id)} className="btn-outline text-sm">Reject</button>
                                             </div>

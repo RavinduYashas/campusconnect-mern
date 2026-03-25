@@ -90,13 +90,15 @@ app.get('/', (req, res) => {
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/clubs', require('./routes/clubRoutes'));
 app.use('/api/sports', require('./routes/sportRoutes'));
+app.use('/api/qa', require('./routes/QA/qaRoutes'));
+app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
 
 // Return JSON for unknown /api routes instead of HTML 404 (helps devtools)
 app.use('/api', (req, res) => {
     res.status(404).json({ message: `API route not found: ${req.method} ${req.originalUrl}` });
 });
 
-// Print registered API routes for debugging
+// Print registered API routes for debugging (call after all routes registered)
 const listRoutes = () => {
     try {
         const routes = [];
@@ -122,8 +124,6 @@ const listRoutes = () => {
 };
 
 listRoutes();
-app.use('/api/qa', require('./routes/QA/qaRoutes'));
-app.use('/api/notifications', require('./routes/QA/notificationRoutes')); // Add notification routes
 
 const PORT = process.env.PORT || 5000;
 

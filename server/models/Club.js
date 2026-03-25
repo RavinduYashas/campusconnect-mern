@@ -34,6 +34,12 @@ const clubSchema = mongoose.Schema(
                 ref: 'User',
             }
         ],
+        waitlist: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+            }
+        ],
         isActive: {
             type: Boolean,
             default: true,

@@ -456,6 +456,7 @@ const SportsTeamList = () => {
                                                 {r.message && <div className="text-xs mt-1">"{r.message}"</div>}
                                             </div>
                                             <div className="flex gap-2">
+                                                <div className="text-xs text-text-secondary mr-2">{r.status}</div>
                                                 <button onClick={() => approve(r._id)} className="btn-primary text-sm">Approve</button>
                                                 <button onClick={() => reject(r._id)} className="btn-outline text-sm">Reject</button>
                                             </div>
