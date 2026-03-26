@@ -17,7 +17,9 @@ const Navbar = () => {
                 <ul className="hidden md:flex items-center gap-6 text-text-secondary font-medium">
                     <li><Link to="/" className="hover:text-primary transition-colors">Home</Link></li>
                     <li><Link to="/profiles" className="hover:text-primary transition-colors">Network</Link></li>
+                    <li><Link to="/clubs" className="hover:text-primary transition-colors">Clubs</Link></li>
                     <li><Link to="/skills" className="hover:text-primary transition-colors">Skill Exchange</Link></li>
+                    <li><Link to="/sports" className="hover:text-primary transition-colors">Sports</Link></li>
                     <li><Link to="/groups" className="hover:text-primary transition-colors">Study Groups</Link></li>
                 </ul>
             </div>
