@@ -4,15 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import AddUserModal from './AddUserModal';
 import EditUserModal from './EditUserModal';
-import AssignRepModal from './AssignRepModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import ConfirmModal from '../../../components/ConfirmModal';
-import { useToast } from '../../../context/ToastContext';
 
 const ManageUsers = () => {
     const navigate = useNavigate();
-    const { showToast } = useToast();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -20,17 +16,8 @@ const ManageUsers = () => {
     const [activeTab, setActiveTab] = useState('student'); // Default to students
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [isRepModalOpen, setIsRepModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
-    const [autoRepDetails, setAutoRepDetails] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [confirmModal, setConfirmModal] = useState({
-        show: false,
-        title: '',
-        message: '',
-        type: 'delete',
-        id: null
-    });
 
     const tabs = [
         { id: 'admin', label: 'Admins' },
@@ -61,27 +48,17 @@ const ManageUsers = () => {
         fetchUsers();
     }, [currentUser, navigate]);
 
-    const handleDelete = (id) => {
-        setConfirmModal({
-            show: true,
-            title: 'Delete User',
-            message: 'Are you sure you want to delete this user? This action cannot be undone.',
-            type: 'delete',
-            id
-        });
-    };
-
-    const executeDelete = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            await axios.delete(`/api/users/${confirmModal.id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setUsers(users.filter(user => user._id !== confirmModal.id));
-            setConfirmModal({ ...confirmModal, show: false });
-        } catch (err) {
-            showToast(err.response?.data?.message || 'Failed to delete user', 'error');
-            setConfirmModal({ ...confirmModal, show: false });
+    const handleDelete = async (id) => {
+        if (window.confirm('Are you sure you want to delete this user?')) {
+            try {
+                const token = localStorage.getItem('token');
+                await axios.delete(`/api/users/${id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setUsers(users.filter(user => user._id !== id));
+            } catch (err) {
+                alert(err.response?.data?.message || 'Failed to delete user');
+            }
         }
     };
 
@@ -99,86 +76,20 @@ const ManageUsers = () => {
         setUsers(users.map(user => user._id === updatedUser._id ? { ...user, ...updatedUser } : user));
     };
 
-    const getAutoRepData = (user) => {
-        if (!user.academicInfo || !user.field) return null;
-
-        const facultyMap = {
-            'IT': 'Computing', 'SE': 'Computing', 'CS': 'Computing', 'DS': 'Computing',
-            'CY': 'Computing', 'IM': 'Computing', 'CN': 'Computing',
-            'EN': 'Engineering', 'ME': 'Engineering', 'EE': 'Engineering', 'CE': 'Engineering',
-            'BM': 'Business', 'BA': 'Business', 'MC': 'Business', 'AF': 'Business',
-            'HS': 'Humanities and Sciences', 'PY': 'Humanities and Sciences', 'ED': 'Humanities and Sciences',
-            'AR': 'Architecture'
-        };
-
-        const prefix = user.field.substring(0, 2).toUpperCase();
-        const faculty = facultyMap[prefix] || 'Other';
-        const academicYear = `Year ${user.academicInfo.year} Sem ${user.academicInfo.semester}`;
-
-        // Verify academicYear is in the valid list
-        const validYears = [
-            'Year 1 Sem 1', 'Year 1 Sem 2', 'Year 2 Sem 1', 'Year 2 Sem 2',
-            'Year 3 Sem 1', 'Year 3 Sem 2', 'Year 4 Sem 1', 'Year 4 Sem 2'
-        ];
-
-        if (!validYears.includes(academicYear)) return null;
-
-        return { faculty, academicYear };
-    };
-
     const handleToggleRep = async (user) => {
-        if (user.isBatchRep) {
-            setConfirmModal({
-                show: true,
-                title: 'Remove Batch Representative',
-                message: `Are you sure you want to remove ${user.name} from their batch representative role?`,
-                type: 'warning',
-                id: user._id,
-                action: 'toggle-rep'
-            });
-        } else {
-            const autoData = getAutoRepData(user);
-            setSelectedUser(user);
-            if (autoData) {
-                // If we have enough data, promote immediately
-                executeToggleRep(autoData, user._id);
-            } else {
-                // Fallback to modal if data is missing or invalid
-                setAutoRepDetails(null);
-                setIsRepModalOpen(true);
-            }
-        }
-    };
-
-    const executeToggleRep = async (repData = null, directUserId = null) => {
-        const userId = directUserId || (repData ? selectedUser._id : confirmModal.id);
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.put(`/api/users/toggle-rep/${userId}`, repData || {}, {
+            const res = await axios.put(`/api/users/toggle-rep/${user._id}`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            
-            setUsers(users.map(u => u._id === userId ? { ...u, isBatchRep: res.data.isBatchRep, batchRepDetails: res.data.batchRepDetails } : u));
-            showToast(`Successfully ${res.data.isBatchRep ? 'promoted' : 'demoted'} ${res.data.name}`, 'success');
-            
-            setIsRepModalOpen(false);
-            setConfirmModal({ ...confirmModal, show: false });
+            setUsers(users.map(u => u._id === user._id ? { ...u, isBatchRep: res.data.isBatchRep } : u));
         } catch (err) {
-            // If direct attempt failed, maybe show modal?
-            showToast(err.response?.data?.message || 'Failed to update representative status', 'error');
-            if (directUserId && !repData) {
-                 setIsRepModalOpen(true);
-            }
+            alert(err.response?.data?.message || 'Failed to update representative status');
         }
     };
 
     const handleExportPDF = () => {
-        // Use landscape for better table fit
-        const doc = new jsPDF({
-            orientation: 'landscape',
-            unit: 'mm',
-            format: 'a4'
-        });
+        const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.width;
 
         // --- 1. Header Section ---
@@ -186,47 +97,46 @@ const ManageUsers = () => {
         doc.rect(0, 0, pageWidth, 40, 'F');
 
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(26);
+        doc.setFontSize(24);
         doc.setFont('helvetica', 'bold');
         doc.text("CampusConnect", 14, 25);
 
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'normal');
-        doc.text("Official Platform Management Report", 14, 33);
-
         doc.setFontSize(10);
-        doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, pageWidth - 80, 25);
+        doc.setFont('helvetica', 'normal');
+        doc.text("Official Platform Management Report", 14, 32);
+
+        doc.setTextColor(255, 255, 255);
+        doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, pageWidth - 70, 25);
 
         // --- 2. Report Details ---
         doc.setTextColor(100, 116, 139); // Gray-500
-        doc.setFontSize(16);
+        doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
         doc.text(`${activeTab.toUpperCase()} DIRECTORY`, 14, 55);
 
-        doc.setFontSize(11);
+        doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Total Records: ${filteredUsers.length}`, 14, 63);
+        doc.text(`Total Records: ${filteredUsers.length}`, 14, 62);
 
         if (searchTerm) {
-            doc.text(`Filter Active: "${searchTerm}"`, 14, 69);
+            doc.text(`Filter Active: "${searchTerm}"`, 14, 67);
         }
 
         // --- 3. Table Data ---
-        const tableColumn = ["#", "Full Name", "Login Email", "Personal Email", "Expertise/Field"];
+        const tableColumn = ["#", "Full Name", "Login Email", "Personal Email", " Expertise/Field"];
         if (activeTab === 'student') {
             tableColumn.splice(4, 0, "Year & Sem");
         }
-        
         const tableRows = filteredUsers.map((user, index) => {
             const row = [
                 index + 1,
                 user.name,
                 user.email,
-                user.realEmail || '—'
+                user.realEmail || 'N/A'
             ];
 
             if (activeTab === 'student') {
-                row.push(user.academicInfo ? `Y${user.academicInfo.year}S${user.academicInfo.semester}` : '—');
+                row.push(user.academicInfo ? `Y${user.academicInfo.year}S${user.academicInfo.semester}` : 'N/A');
             }
 
             row.push(user.field || 'General');
@@ -246,22 +156,20 @@ const ManageUsers = () => {
                 halign: 'center'
             },
             columnStyles: {
-                0: { cellWidth: 15, halign: 'center' }, // #
-                1: { cellWidth: 'auto' }, // Full Name
-                2: { cellWidth: 55 }, // Login Email
-                3: { cellWidth: 55 }, // Personal Email
-                4: { cellWidth: activeTab === 'student' ? 30 : 50 }, // Year & Sem or Expertise
-                5: { cellWidth: 50 } // Expertise (if student)
+                0: { cellWidth: 10, halign: 'center' },
+                1: { cellWidth: 40 },
+                2: { cellWidth: 50 },
+                3: { cellWidth: 50 },
+                4: { cellWidth: 35 }
             },
             styles: {
                 fontSize: 9,
-                cellPadding: 4,
-                overflow: 'linebreak'
+                cellPadding: 4
             },
             alternateRowStyles: {
                 fillColor: [248, 250, 252]
             },
-            margin: { left: 14, right: 14, top: 75 },
+            margin: { top: 75 },
             didDrawPage: (data) => {
                 // Footer
                 const str = "Page " + doc.internal.getNumberOfPages();
@@ -493,23 +401,6 @@ const ManageUsers = () => {
                 }}
                 user={selectedUser}
                 onUserUpdated={handleUserUpdated}
-            />
-
-            <ConfirmModal
-                show={confirmModal.show}
-                title={confirmModal.title}
-                message={confirmModal.message}
-                type={confirmModal.type}
-                onConfirm={confirmModal.action === 'toggle-rep' ? () => executeToggleRep() : executeDelete}
-                onCancel={() => setConfirmModal({ ...confirmModal, show: false })}
-            />
-
-            <AssignRepModal
-                isOpen={isRepModalOpen}
-                onClose={() => setIsRepModalOpen(false)}
-                onConfirm={executeToggleRep}
-                studentName={selectedUser?.name}
-                initialData={getAutoRepData(selectedUser || {})}
             />
         </div>
     );
