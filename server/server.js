@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -125,9 +126,9 @@ app.use('/api/qa', require('./routes/QA/qaRoutes'));
 app.use('/api/notifications', require('./routes/QA/notificationRoutes')); // Add notification routes
 app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
 
-// STUDY GROUP ROUTES - Use this path if your file is directly in routes folder
-// Change this line to match where your file actually is
+// STUDY GROUP ROUTES
 app.use('/api/study-groups', require('./routes/StudyGroups/StudyGroups'));
+app.use('/api/peer-skills', require('./routes/peer-skill-exchange/skillRoutes')); // Peer Skill Exchange Routes
 app.use('/api/workshops', require('./routes/Workshops/Workshops'));
 
 // NOT this path:

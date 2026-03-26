@@ -1,3 +1,4 @@
+// App.jsx
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -6,16 +7,26 @@ import Profiles from './pages/Profiles';
 import ProfileView from './pages/ProfileView';
 import QA from './pages/QA';
 import Skills from './pages/Skills';
-import StudyGroups from './pages/StudyGroups';
+import CreateSkill from './pages/CreateSkill';
+import SkillDetails from './pages/SkillDetails';
+import StudyGroups from './pages/StudyGroups/StudyGroups';
+import StudyGroupDetails from './pages/StudyGroups/StudyGroupDetails'; // Add this import
 import Clubs from './pages/Clubs';
 import Sports from './pages/Sports';
 import AdminDashboard from './pages/AdminDashboard';
 import ManageUsers from './pages/adminDashboard/studentProfiles/ManageUsers';
-import StudentList from './pages/adminDashboard/studentProfiles/StudentList';
+import QADashboard from './pages/adminDashboard/qa/qaDashboard';
+import ManageQuestions from './pages/adminDashboard/qa/ManageQuestions';
+import QuestionDetail from './pages/adminDashboard/qa/QuestionDetail';
+import ManageAnswers from './pages/adminDashboard/qa/ManageAnswers';
+import ManageGroups from './pages/adminDashboard/qa/ManageGroups';
+import GroupMembers from './pages/adminDashboard/qa/GroupMembers';
 import SkillList from './pages/adminDashboard/skillsEvents/SkillList';
+import SkillForm from './pages/adminDashboard/skillsEvents/SkillForm';
 import StudyGroupList from './pages/adminDashboard/studyGroupsWorkshops/StudyGroupList';
 import ClubList from './pages/adminDashboard/clubs/ClubList';
 import SportsTeamList from './pages/adminDashboard/sports/SportsTeamList';
+// import CreateSkill from './pages/CreateSkill';
 import AdminLayout from './components/admin/AdminLayout';
 import ClientLayout from './components/ClientLayout';
 
@@ -27,8 +38,15 @@ function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="students" element={<StudentList />} />
+          <Route path="qa-dashboard" element={<QADashboard />} />
+          <Route path="qa/questions" element={<ManageQuestions />} />
+          <Route path="qa/questions/:id" element={<QuestionDetail />} />
+          <Route path="qa/answers" element={<ManageAnswers />} />
+          <Route path="qa/groups" element={<ManageGroups />} />
+          <Route path="qa/groups/:id" element={<GroupMembers />} />
           <Route path="skills-events" element={<SkillList />} />
+          <Route path="skills-events/new" element={<SkillForm />} />
+          <Route path="skills-events/edit/:id" element={<SkillForm />} />
           <Route path="study-groups" element={<StudyGroupList />} />
           <Route path="clubs" element={<ClubList />} />
           <Route path="sports" element={<SportsTeamList />} />
@@ -46,7 +64,11 @@ function App() {
           <Route path="/profile/:id" element={<ProfileView />} />
           <Route path="/qa" element={<QA />} />
           <Route path="/skills" element={<Skills />} />
+          <Route path="/skills/:id" element={<SkillDetails />} />
+          <Route path="/create-skill" element={<CreateSkill />} />
+          <Route path="/edit-skill/:id" element={<CreateSkill />} />
           <Route path="/groups" element={<StudyGroups />} />
+          <Route path="/study-groups/:id" element={<StudyGroupDetails />} /> {/* Add this route */}
           <Route path="/clubs" element={<Clubs />} />
           <Route path="/sports" element={<Sports />} />
         </Route>
