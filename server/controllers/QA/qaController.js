@@ -248,7 +248,7 @@ exports.getQuestionsByGroup = async (req, res) => {
         if (topic) query.topic = topic;
 
         const questions = await Question.find(query)
-            .populate("askedBy", "name avatar")
+            .populate("askedBy", "name avatar isBatchRep")
             .populate({
                 path: "answers",
                 populate: { path: "answeredBy", select: "name avatar expertProfile" }
@@ -267,7 +267,7 @@ exports.getQuestionsByGroup = async (req, res) => {
 exports.getCommunityMembers = async (req, res) => {
     try {
         const students = await User.find({ role: 'student' })
-            .select('name avatar joinedGroups academicInfo field')
+            .select('name avatar joinedGroups academicInfo field isBatchRep')
             .limit(10); // Optionally limit for performance
 
         const experts = await User.find({ role: 'expert' })
@@ -467,7 +467,7 @@ exports.getProfileQAData = async (req, res) => {
 
         // Get questions asked by user (with their full answers)
         const questions = await Question.find({ askedBy: userId })
-            .populate("askedBy", "name avatar")
+            .populate("askedBy", "name avatar isBatchRep")
             .populate({
                 path: "answers",
                 populate: { path: "answeredBy", select: "name avatar" }
@@ -479,7 +479,7 @@ exports.getProfileQAData = async (req, res) => {
             .populate({
                 path: "question",
                 populate: [
-                    { path: "askedBy", select: "name avatar" },
+                    { path: "askedBy", select: "name avatar isBatchRep" },
                     { path: "answers", populate: { path: "answeredBy", select: "name avatar" } }
                 ]
             })
@@ -578,7 +578,7 @@ exports.getRecentActivity = async (req, res) => {
 exports.getAllQuestions = async (req, res) => {
     try {
         const questions = await Question.find()
-            .populate("askedBy", "name email avatar")
+            .populate("askedBy", "name email avatar isBatchRep")
             .populate("group", "name")
             .sort({ createdAt: -1 });
         res.json(questions);
@@ -640,7 +640,7 @@ exports.getGroupByIdAdmin = async (req, res) => {
 exports.getQuestionDetailAdmin = async (req, res) => {
     try {
         const question = await Question.findById(req.params.id)
-            .populate("askedBy", "name email avatar")
+            .populate("askedBy", "name email avatar isBatchRep")
             .populate("group", "name")
             .populate({
                 path: "answers",

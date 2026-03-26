@@ -31,6 +31,10 @@ const userSchema = new mongoose.Schema({
     required: true,
     default: "student"
   },
+  isBatchRep: {
+    type: Boolean,
+    default: false
+  },
   registerNumber: String,
   field: String,
   // ===== Profile Data =====

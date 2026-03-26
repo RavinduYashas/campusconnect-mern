@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, getMe, getUserById, updateAvatar, updateProfile, getAllUsers, updateUser, updateUserRole, deleteUser, sendOTP, verifyOTP, adminCreateUser, getExpertCount } = require('../controllers/userController');
+const { registerUser, loginUser, getMe, getUserById, updateAvatar, updateProfile, getAllUsers, updateUser, updateUserRole, deleteUser, sendOTP, verifyOTP, adminCreateUser, getExpertCount, toggleRep } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
 const { roleAuthorize } = require('../middleware/roleMiddleware');
 
@@ -17,6 +17,7 @@ router.get('/all', protect, roleAuthorize('admin'), getAllUsers);
 router.get('/expert-count', protect, roleAuthorize('admin'), getExpertCount);
 router.post('/admin-create', protect, roleAuthorize('admin'), adminCreateUser);
 router.put('/role/:id', protect, roleAuthorize('admin'), updateUserRole);
+router.put('/toggle-rep/:id', protect, roleAuthorize('admin'), toggleRep);
 router.put('/:id', protect, roleAuthorize('admin'), updateUser);
 router.delete('/:id', protect, roleAuthorize('admin'), deleteUser);
 

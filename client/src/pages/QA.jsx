@@ -600,10 +600,12 @@ const QA = () => {
                                                 >
                                                     <div className="flex justify-between items-start mb-4">
                                                         <div className="flex items-center gap-2">
-                                                            <img src={`/${question.askedBy?.avatar || 'src/assets/images/Avatars/avatar1.png'}`} alt="" className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200" />
+                                                            <img src={`/${question.askedBy?.avatar || 'src/assets/images/Avatars/avatar1.png'}`} alt="" className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex-shrink-0 object-cover" />
                                                             <div>
                                                                 <div className="text-sm font-bold text-text-main">{question.askedBy?.name || "Unknown User"}</div>
-                                                                <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider">Student</div>
+                                                                <div className={`text-[10px] font-bold uppercase tracking-wider ${question.askedBy?.isBatchRep ? 'text-orange-500' : 'text-text-muted'}`}>
+                                                                    {question.askedBy?.isBatchRep ? 'Batch Rep' : 'Student'}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-3">
@@ -721,8 +723,8 @@ const QA = () => {
                                                                 }`}>
                                                                 <div className="flex items-center justify-between mb-3">
                                                                     <div className="flex items-center gap-2">
-                                                                        <div className="relative">
-                                                                            <img src={`/${answer.answeredBy?.avatar || 'src/assets/images/Avatars/expert1.png'}`} alt="" className="w-6 h-6 rounded-full border border-primary/20" />
+                                                                        <div className="relative flex-shrink-0">
+                                                                            <img src={`/${answer.answeredBy?.avatar || 'src/assets/images/Avatars/expert1.png'}`} alt="" className="w-6 h-6 rounded-full border border-primary/20 object-cover" />
                                                                             {answer.isSolved && (
                                                                                 <div className="absolute -bottom-1 -right-1 bg-green-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-[6px] border border-white shadow-sm">✓</div>
                                                                             )}
@@ -955,8 +957,8 @@ const QA = () => {
                                     const isOnline = onlineUsers?.includes(expert._id);
                                     return (
                                         <Link to={`/profile/${expert._id}`} key={expert._id} className="flex items-center gap-3 p-2 rounded-xl transition-colors hover:bg-gray-50 group">
-                                            <div className="relative">
-                                                <img src={`/${expert.avatar}`} alt="" className="w-10 h-10 rounded-full border border-primary/10" />
+                                            <div className="relative flex-shrink-0">
+                                                <img src={`/${expert.avatar}`} alt="" className="w-10 h-10 rounded-full border border-primary/10 object-cover" />
                                                 <div className={`absolute bottom-0 left-0 w-3 h-3 rounded-full border-2 border-white ${isOnline ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                                                 <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-primary text-white text-[8px] flex items-center justify-center rounded-full border-2 border-white font-black">✓</div>
                                             </div>
@@ -992,12 +994,17 @@ const QA = () => {
                                     const isOnline = onlineUsers?.includes(student._id);
                                     return (
                                         <Link to={`/profile/${student._id}`} key={student._id} className="flex items-center gap-3 p-2 rounded-xl transition-colors hover:bg-gray-50 group">
-                                            <div className="relative">
-                                                <img src={`/${student.avatar}`} alt="" className="w-10 h-10 rounded-full border border-gray-100" />
+                                            <div className="relative flex-shrink-0">
+                                                <img src={`/${student.avatar}`} alt="" className="w-10 h-10 rounded-full border border-gray-100 object-cover" />
                                                 <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${isOnline ? 'bg-green-500' : 'bg-gray-300'}`}></div>
                                             </div>
                                             <div className="flex-grow min-w-0">
-                                                <div className="text-sm font-bold text-text-main truncate group-hover:text-primary transition-colors">{student.name}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="text-sm font-bold text-text-main truncate group-hover:text-primary transition-colors">{student.name}</div>
+                                                    {student.isBatchRep && (
+                                                        <span className="text-[8px] font-black bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-full uppercase tracking-tighter border border-orange-100 flex-shrink-0">Rep</span>
+                                                    )}
+                                                </div>
                                                 <div className="text-[9px] text-text-muted font-bold flex flex-wrap items-center gap-1 mt-1">
                                                     {student.academicInfo?.year && (
                                                         <span className="bg-blue-50 text-primary px-1.5 py-0.5 rounded-lg border border-blue-100">

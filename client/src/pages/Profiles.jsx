@@ -181,9 +181,9 @@ const Profiles = () => {
                             <h1 className="text-3xl font-bold text-text-main font-heading">{user.name}</h1>
                             <p className="text-text-secondary font-medium">{user.email}</p>
                             <div className="flex flex-wrap justify-center sm:justify-start gap-3 mt-3">
-                                <span className={`px-4 py-1 text-xs font-black rounded-full uppercase tracking-widest shadow-sm ${user.role === 'admin' ? 'bg-accent text-primary' : 'bg-blue-50 text-primary'
+                                <span className={`whitespace-nowrap px-4 py-1 text-xs font-black rounded-full uppercase tracking-widest shadow-sm ${user.role === 'admin' ? 'bg-accent text-primary' : (user.isBatchRep ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-primary')
                                     }`}>
-                                    {user.role}
+                                    {user.isBatchRep ? 'Batch Rep' : user.role}
                                 </span>
                                 {user.role !== 'admin' && user.field && (
                                     <span className="px-3 py-1 bg-green-50 text-green-600 text-xs font-bold rounded-full uppercase tracking-wider">
