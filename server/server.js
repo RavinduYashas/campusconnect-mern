@@ -83,6 +83,15 @@ app.get('/', (req, res) => {
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/qa', require('./routes/QA/qaRoutes'));
 app.use('/api/notifications', require('./routes/QA/notificationRoutes')); // Add notification routes
+app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
+
+// STUDY GROUP ROUTES - Use this path if your file is directly in routes folder
+// Change this line to match where your file actually is
+app.use('/api/study-groups', require('./routes/StudyGroups/StudyGroups'));
+app.use('/api/workshops', require('./routes/Workshops/Workshops'));
+
+// NOT this path:
+// app.use('/api/study-groups', require('./routes/StudyGroups/studyGroupRoutes'));
 
 const PORT = process.env.PORT || 5000;
 
