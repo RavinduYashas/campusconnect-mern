@@ -85,12 +85,8 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/qa', require('./routes/QA/qaRoutes'));
 app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
 
-// STUDY GROUP ROUTES - Use this path if your file is directly in routes folder
-// Change this line to match where your file actually is
+// STUDY GROUP ROUTES
 app.use('/api/study-groups', require('./routes/StudyGroups/StudyGroups'));
-
-// NOT this path:
-// app.use('/api/study-groups', require('./routes/StudyGroups/studyGroupRoutes'));
 app.use('/api/peer-skills', require('./routes/peer-skill-exchange/skillRoutes')); // Peer Skill Exchange Routes
 
 const PORT = process.env.PORT || 5000;

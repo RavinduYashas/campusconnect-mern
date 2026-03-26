@@ -1,4 +1,9 @@
 const Skill = require('../../models/peer-skill-exchange/Skill');
+<<<<<<< HEAD
+const Response = require('../../models/peer-skill-exchange/Response');
+const { sendSkillReplyEmail } = require('../../utils/emailUtils');
+=======
+>>>>>>> 9b0a3de
 
 // @desc    Create a new skill listing
 // @route   POST /api/peer-skills
@@ -18,7 +23,11 @@ const createSkill = async (req, res) => {
         res.status(201).json(skill);
     } catch (error) {
         console.error(error);
+<<<<<<< HEAD
         res.status(500).json({ message: 'Server Error' });
+=======
+        res.status(500).json({ message: 'Database Connection Error', details: error.message });
+>>>>>>> 9b0a3de
     }
 };
 
@@ -27,11 +36,19 @@ const createSkill = async (req, res) => {
 // @access  Public/Private
 const getAllSkills = async (req, res) => {
     try {
+<<<<<<< HEAD
         const skills = await Skill.find().populate('createdBy', 'firstName lastName email profilePicture');
         res.status(200).json(skills);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error' });
+=======
+        const skills = await Skill.find().populate('createdBy', 'name email avatar');
+        res.status(200).json(skills);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Database Connection Error', details: error.message });
+>>>>>>> 9b0a3de
     }
 };
 
@@ -40,7 +57,11 @@ const getAllSkills = async (req, res) => {
 // @access  Public/Private
 const getSkillById = async (req, res) => {
     try {
+<<<<<<< HEAD
         const skill = await Skill.findById(req.params.id).populate('createdBy', 'firstName lastName email profilePicture');
+=======
+        const skill = await Skill.findById(req.params.id).populate('createdBy', 'name email avatar');
+>>>>>>> 9b0a3de
 
         if (!skill) {
             return res.status(404).json({ message: 'Skill listing not found' });
@@ -49,7 +70,11 @@ const getSkillById = async (req, res) => {
         res.status(200).json(skill);
     } catch (error) {
         console.error(error);
+<<<<<<< HEAD
         res.status(500).json({ message: 'Server Error' });
+=======
+        res.status(500).json({ message: 'Database Connection Error', details: error.message });
+>>>>>>> 9b0a3de
     }
 };
 
@@ -80,7 +105,11 @@ const updateSkill = async (req, res) => {
         res.status(200).json(updatedSkill);
     } catch (error) {
         console.error(error);
+<<<<<<< HEAD
         res.status(500).json({ message: 'Server Error' });
+=======
+        res.status(500).json({ message: 'Database Connection Error', details: error.message });
+>>>>>>> 9b0a3de
     }
 };
 
@@ -105,7 +134,57 @@ const deleteSkill = async (req, res) => {
         res.status(200).json({ message: 'Skill listing removed' });
     } catch (error) {
         console.error(error);
+<<<<<<< HEAD
         res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+// @desc    Reply to a skill request (Expert only)
+// @route   POST /api/peer-skills/reply/:id
+// @access  Private (Expert)
+const replyToSkillRequest = async (req, res) => {
+    try {
+        const { message } = req.body;
+        const skill = await Skill.findById(req.params.id).populate('createdBy', 'firstName lastName email');
+
+        if (!skill) {
+            return res.status(404).json({ message: 'Skill request not found' });
+        }
+
+        if (skill.type !== 'request') {
+            return res.status(400).json({ message: 'Can only reply to skill requests' });
+        }
+
+        // Check if user is an expert
+        if (req.user.role !== 'expert' && req.user.role !== 'admin') {
+            return res.status(401).json({ message: 'Only experts can reply to skill requests' });
+        }
+
+        const response = await Response.create({
+            skillRequest: req.params.id,
+            expert: req.user.id,
+            message
+        });
+
+        // Send formal email notification to the student
+        await sendSkillReplyEmail(
+            skill.createdBy.email,
+            `${skill.createdBy.firstName} ${skill.createdBy.lastName}`,
+            `${req.user.firstName} ${req.user.lastName}`,
+            skill.title,
+            message
+        );
+
+        res.status(201).json({
+            message: 'Reply sent successfully and student notified via email',
+            response
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
+=======
+        res.status(500).json({ message: 'Database Connection Error', details: error.message });
+>>>>>>> 9b0a3de
     }
 };
 
@@ -114,5 +193,10 @@ module.exports = {
     getAllSkills,
     getSkillById,
     updateSkill,
+<<<<<<< HEAD
+    deleteSkill,
+    replyToSkillRequest
+=======
     deleteSkill
+>>>>>>> 9b0a3de
 };
