@@ -1,9 +1,33 @@
+// components/Header.jsx
 import { Link, useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
 import NotificationsDropdown from './NotificationsDropdown';
 
 const Header = () => {
     const navigate = useNavigate();
     const user = JSON.parse(localStorage.getItem('user'));
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleDropdownToggle = () => {
+        setIsDropdownOpen(!isDropdownOpen);
+    };
+
+    const handleNavigation = (path) => {
+        setIsDropdownOpen(false);
+        navigate(path);
+    };
 
     return (
         <header className="bg-primary text-white shadow-md sticky top-0 z-50 font-heading">
@@ -15,7 +39,48 @@ const Header = () => {
                 <nav className="hidden md:flex space-x-8 text-sm font-medium">
                     <Link to="/" className="hover:text-accent transition-colors">Home</Link>
                     <Link to="/skills" className="hover:text-accent transition-colors">Skills</Link>
-                    <Link to="/groups" className="hover:text-accent transition-colors">Study Groups</Link>
+                    
+                    {/* Dropdown for Study Groups & Workshops */}
+                    <div className="relative" ref={dropdownRef}>
+                        <button
+                            onClick={handleDropdownToggle}
+                            className="hover:text-accent transition-colors flex items-center gap-1 focus:outline-none"
+                        >
+                            Study Groups & Workshops
+                            <svg
+                                className={`w-4 h-4 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        
+                        {isDropdownOpen && (
+                            <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 z-50 animate-fadeIn">
+                                <button
+                                    onClick={() => handleNavigation('/groups')}
+                                    className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-primary transition-colors flex items-center gap-2"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                    </svg>
+                                    Study Groups
+                                </button>
+                                <button
+                                    onClick={() => handleNavigation('/workshops')}
+                                    className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100 hover:text-primary transition-colors flex items-center gap-2"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z" />
+                                    </svg>
+                                    Workshops
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    
                     <Link to="/clubs" className="hover:text-accent transition-colors">Clubs</Link>
                     <Link to="/sports" className="hover:text-accent transition-colors">Sports</Link>
                     <Link to="/qa" className="hover:text-accent transition-colors">Q&A</Link>
