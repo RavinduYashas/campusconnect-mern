@@ -26,7 +26,7 @@ import SkillForm from './pages/adminDashboard/skillsEvents/SkillForm';
 import StudyGroupList from './pages/adminDashboard/studyGroupsWorkshops/StudyGroupList';
 import ClubList from './pages/adminDashboard/clubs/ClubList';
 import SportsTeamList from './pages/adminDashboard/sports/SportsTeamList';
-import CreateSkill from './pages/CreateSkill';
+// import CreateSkill from './pages/CreateSkill';
 import AdminLayout from './components/admin/AdminLayout';
 import ClientLayout from './components/ClientLayout';
 
