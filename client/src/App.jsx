@@ -20,6 +20,7 @@ import ClubList from './pages/adminDashboard/clubs/ClubList';
 import SportsTeamList from './pages/adminDashboard/sports/SportsTeamList';
 import AdminLayout from './components/admin/AdminLayout';
 import ClientLayout from './components/ClientLayout';
+import Workshops from './pages/Workshops/Workshops';
 
 function App() {
   return (
@@ -52,6 +53,7 @@ function App() {
           <Route path="/study-groups/:id" element={<StudyGroupDetails />} /> {/* Add this route */}
           <Route path="/clubs" element={<Clubs />} />
           <Route path="/sports" element={<Sports />} />
+          <Route path="/Workshops" element={<Workshops />} />
         </Route>
       </Routes>
     </Router>

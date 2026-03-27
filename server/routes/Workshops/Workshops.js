@@ -2,36 +2,57 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../../middleware/authMiddleware');
-const {
-  createWorkshop,
-  getAllWorkshops,
-  getWorkshopById,
-  registerForWorkshop,
-  cancelRegistration,
-  uploadMaterial,
-  requestWorkshop,
-  updateWorkshopStatus,
-  getMyRequests,           // Add this
-  getAssignedRequests,     // Add this
-  updateRequestStatus,     // Add this
-  voteForRequest           // Add this
-} = require('../../controllers/Workshops/Workshops');
+const Workshop = require('../../models/Workshops/Workshops');
 
-router.route('/')
-  .get(protect, getAllWorkshops)
-  .post(protect, createWorkshop);
+// Get all workshops
+router.get('/', protect, async (req, res) => {
+  try {
+    const workshops = await Workshop.find({})
+      .populate('createdBy', 'name avatar')
+      .sort('-createdAt');
+    res.json(workshops);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
-// Workshop request routes
-router.get('/my-requests', protect, getMyRequests);
-router.get('/assigned-requests', protect, getAssignedRequests);
-router.post('/requests', protect, requestWorkshop);
-router.put('/requests/:id/status', protect, updateRequestStatus);
-router.post('/requests/:id/vote', protect, voteForRequest);
+// Create workshop
+router.post('/', protect, async (req, res) => {
+  try {
+    const workshop = await Workshop.create({
+      ...req.body,
+      createdBy: req.user.id
+    });
+    res.status(201).json(workshop);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
-router.get('/:id', protect, getWorkshopById);
-router.post('/:id/register', protect, registerForWorkshop);
-router.delete('/:id/cancel', protect, cancelRegistration);
-router.post('/:id/materials', protect, uploadMaterial);
-router.put('/:id/status', protect, updateWorkshopStatus);
+// Register for workshop
+router.post('/:id/register', protect, async (req, res) => {
+  try {
+    const workshop = await Workshop.findById(req.params.id);
+    
+    if (!workshop) {
+      return res.status(404).json({ message: 'Workshop not found' });
+    }
+    
+    if (workshop.attendees.includes(req.user.id)) {
+      return res.status(400).json({ message: 'Already registered' });
+    }
+    
+    if (workshop.attendees.length >= workshop.capacity) {
+      return res.status(400).json({ message: 'Workshop is full' });
+    }
+    
+    workshop.attendees.push(req.user.id);
+    await workshop.save();
+    
+    res.json({ message: 'Successfully registered' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 module.exports = router;
