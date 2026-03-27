@@ -5,7 +5,7 @@ const User = require('../models/User');
 // Create sport/team
 const createSport = async (req, res) => {
     try {
-        const { name, description, coach, maxMembers } = req.body;
+        const { name, sportType, description, coach, maxMembers } = req.body;
         if (!name) return res.status(400).json({ message: 'Name is required' });
         // name must contain only letters and spaces
         if (!/^[A-Za-z\s]+$/.test(name)) return res.status(400).json({ message: 'Team name may only contain letters and spaces' });
@@ -14,7 +14,7 @@ const createSport = async (req, res) => {
             mm = parseInt(maxMembers, 10);
             if (isNaN(mm) || mm < 1) return res.status(400).json({ message: 'maxMembers must be a positive integer' });
         }
-        const sport = await Sport.create({ name, description, coach, maxMembers: mm, createdBy: req.user ? req.user._id : undefined });
+        const sport = await Sport.create({ name, sportType: sportType || 'General', description, coach, maxMembers: mm, createdBy: req.user ? req.user._id : undefined });
         res.status(201).json(sport);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -56,6 +56,9 @@ const updateSport = async (req, res) => {
         if (typeof req.body.name !== 'undefined') {
             if (!/^[A-Za-z\s]+$/.test(req.body.name)) return res.status(400).json({ message: 'Team name may only contain letters and spaces' });
             sport.name = req.body.name;
+        }
+        if (typeof req.body.sportType !== 'undefined') {
+            sport.sportType = req.body.sportType;
         }
         sport.description = req.body.description || sport.description;
         sport.coach = req.body.coach || sport.coach;

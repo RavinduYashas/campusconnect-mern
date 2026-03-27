@@ -318,18 +318,25 @@ const ClubList = () => {
                 <>
                     {/* Admin quick-approval panel */}
                     {adminRequests && adminRequests.length > 0 && (
-                        <div className="mb-4 bg-white p-4 rounded-lg border">
-                            <h4 className="font-semibold mb-2">Pending Requests (All Clubs)</h4>
-                            <ul className="space-y-2">
+                        <div className="mb-6 bg-orange-50 p-6 rounded-2xl border border-orange-200 shadow-sm">
+                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-orange-900">
+                                <span>⏳</span> Pending Join Requests
+                            </h3>
+                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {adminRequests.map(r => (
-                                    <li key={r._id} className="flex items-center justify-between">
+                                    <div key={r._id} className="bg-white p-5 rounded-xl border border-orange-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
                                         <div>
-                                            <div className="font-medium">{r.user?.name} — <span className="text-sm text-text-secondary">{r.user?.email}</span></div>
-                                            <div className="text-sm">Club: {r.club?.name || '—'}</div>
-                                            {r.message && <div className="text-xs mt-1">"{r.message}"</div>}
+                                            <h4 className="font-bold text-gray-800 text-lg">{r.user?.name || 'Unknown User'}</h4>
+                                            <p className="text-sm text-gray-500">{r.user?.email}</p>
+                                            <div className="mt-3 text-xs font-bold px-3 py-1 bg-blue-50 text-[#1E3A8A] border border-blue-100 rounded-lg inline-block">
+                                                Club: {r.club?.name || '—'}
+                                            </div>
+                                            <div className="text-xs font-bold px-3 py-1 bg-orange-100 text-orange-800 border border-orange-200 rounded-lg inline-block ml-2">
+                                                Status: {r.status}
+                                            </div>
+                                            {r.message && <p className="mt-3 text-sm italic text-gray-600 bg-gray-50 p-2 rounded-lg">"{r.message}"</p>}
                                         </div>
-                                        <div className="flex gap-2">
-                                            <div className="text-xs text-text-secondary mr-2">{r.status}</div>
+                                        <div className="mt-4 flex gap-2">
                                             <button onClick={async () => {
                                                 try {
                                                     const token = localStorage.getItem('token');
@@ -337,12 +344,11 @@ const ClubList = () => {
                                                     const body = await res.json();
                                                     if (!res.ok) throw new Error(body.message || 'Approve failed');
                                                     alert(body.message || 'Approved');
-                                                    // refresh both lists
                                                     loadClubs();
                                                     const rres = await fetch('/api/clubs/admin/requests', { headers: { Authorization: `Bearer ${token}` } });
                                                     if (rres.ok) setAdminRequests(await rres.json());
                                                 } catch (err) { alert(err.message || 'Approve failed'); }
-                                            }} className="btn-primary text-sm">Approve</button>
+                                            }} className="flex-1 bg-[#F97316] hover:bg-[#EA580C] text-white font-bold py-2 rounded-lg transition-colors text-sm shadow-sm">Approve</button>
                                             <button onClick={async () => {
                                                 try {
                                                     const token = localStorage.getItem('token');
@@ -354,11 +360,11 @@ const ClubList = () => {
                                                     const rres = await fetch('/api/clubs/admin/requests', { headers: { Authorization: `Bearer ${token}` } });
                                                     if (rres.ok) setAdminRequests(await rres.json());
                                                 } catch (err) { alert(err.message || 'Reject failed'); }
-                                            }} className="btn-outline text-sm">Reject</button>
+                                            }} className="flex-1 bg-white border border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-gray-700 font-bold py-2 rounded-lg transition-colors text-sm shadow-sm">Reject</button>
                                         </div>
-                                    </li>
+                                    </div>
                                 ))}
-                            </ul>
+                            </div>
                         </div>
                     )}
                     <div className="mb-2 flex items-center justify-between">

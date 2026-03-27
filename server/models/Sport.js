@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const sportSchema = mongoose.Schema(
     {
         name: { type: String, required: true },
+        sportType: { type: String, default: 'General' },
         description: { type: String, default: '' },
         coach: { type: String, default: '' },
         maxMembers: { type: Number, min: 1 },

@@ -142,10 +142,22 @@ listRoutes();
 <<<<<<< HEAD
 app.use('/api/qa', require('./routes/QA/qaRoutes'));
 app.use('/api/notifications', require('./routes/QA/notificationRoutes')); // Add notification routes
+<<<<<<< HEAD
 =======
 >>>>>>> 8052454 (V3)
 =======
 >>>>>>> aa01aab (gj)
+=======
+app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
+
+// STUDY GROUP ROUTES - Use this path if your file is directly in routes folder
+// Change this line to match where your file actually is
+// app.use('/api/study-groups', require('./routes/StudyGroups/StudyGroups'));
+// app.use('/api/workshops', require('./routes/Workshops/Workshops'));
+
+// NOT this path:
+// app.use('/api/study-groups', require('./routes/StudyGroups/studyGroupRoutes'));
+>>>>>>> 618cd37 (feat: Implement Clubs and Sports features including client pages, admin dashboards, and server-side models/controllers.)
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
