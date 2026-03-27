@@ -10,8 +10,8 @@ const ClubForm = ({ club = null, onSaved, onCancel }) => {
             .required('Name is required')
             .matches(/^[A-Za-z\s]+$/, 'Name may only contain letters and spaces'),
         coach: Yup.string()
-            .required('Coach is required')
-            .matches(/^[A-Za-z\s]+$/, 'Coach may only contain letters and spaces'),
+            .notRequired(),
+        
         maxMembers: Yup.number().nullable().transform((v, o) => (o === '' ? null : v)).min(1, 'Max members must be at least 1')
     });
 
@@ -82,11 +82,11 @@ const ClubForm = ({ club = null, onSaved, onCancel }) => {
                     {formik.touched.maxMembers && formik.errors.maxMembers && <div className="text-xs text-red-600 mt-1">{formik.errors.maxMembers}</div>}
                 </div>
 
-                <div>
+                {/* <div>
                     <label className="block text-sm font-medium">Coach</label>
                     <input name="coach" value={formik.values.coach} onChange={formik.handleChange} onBlur={formik.handleBlur} className="mt-1 block w-full border rounded-md p-2" />
                     {formik.touched.coach && formik.errors.coach && <div className="text-xs text-red-600 mt-1">{formik.errors.coach}</div>}
-                </div>
+                </div> */}
 
                 <div>
                     <label className="block text-sm font-medium">Description</label>

@@ -10,9 +10,6 @@ const createClub = async (req, res) => {
         if (!name) return res.status(400).json({ message: 'Club name is required' });
         // name must contain only letters and spaces
         if (!/^[A-Za-z\s]+$/.test(name)) return res.status(400).json({ message: 'Club name may only contain letters and spaces' });
-        if (!coach) return res.status(400).json({ message: 'Coach is required' });
-        if (!/^[A-Za-z\s]+$/.test(coach)) return res.status(400).json({ message: 'Coach may only contain letters and spaces' });
-
         let mm;
         if (typeof maxMembers !== 'undefined' && maxMembers !== null && maxMembers !== '') {
             mm = parseInt(maxMembers, 10);
@@ -221,11 +218,7 @@ const updateClub = async (req, res) => {
 
         club.description = req.body.description || club.description;
 
-        if (typeof req.body.coach !== 'undefined') {
-            if (!req.body.coach) return res.status(400).json({ message: 'Coach is required' });
-            if (!/^[A-Za-z\s]+$/.test(req.body.coach)) return res.status(400).json({ message: 'Coach may only contain letters and spaces' });
-            club.coach = req.body.coach;
-        }
+        
 
         if (typeof req.body.maxMembers !== 'undefined') {
             if (req.body.maxMembers === null || req.body.maxMembers === '') {
