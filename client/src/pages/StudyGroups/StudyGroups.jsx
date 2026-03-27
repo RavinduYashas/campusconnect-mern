@@ -44,6 +44,15 @@ const StudyGroups = () => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
+      // First, debug all groups in database
+      console.log('\n=== 🔍 DEBUG: Checking all groups in database ===');
+      try {
+        const debugRes = await axios.get('/api/study-groups/debug/all', config);
+        console.log('📊 All groups in DB:', debugRes.data);
+      } catch (debugErr) {
+        console.error('Debug endpoint error:', debugErr);
+      }
+
       const params = new URLSearchParams();
       if (selectedFaculty !== 'all') params.append('faculty', selectedFaculty);
       if (selectedType !== 'all') params.append('type', selectedType);
@@ -51,8 +60,9 @@ const StudyGroups = () => {
       if (searchQuery.trim() !== '') params.append('search', searchQuery);
 
       const url = `/api/study-groups?${params.toString()}`;
-      console.log('🔍 SEARCH URL:', url);
+      console.log('\n🔍 SEARCH URL:', url);
       console.log('🔍 SEARCH QUERY:', searchQuery);
+      console.log('🔍 Filters:', { selectedFaculty, selectedType, selectedAcademicYear });
 
       const [myGroupsRes, availableRes, pendingRes] = await Promise.all([
         axios.get('/api/study-groups/my-groups', config),
@@ -60,20 +70,26 @@ const StudyGroups = () => {
         axios.get('/api/study-groups/pending-requests', config)
       ]);
 
-      console.log('📊 Available groups count:', availableRes.data.length);
+      console.log('\n📊 Available groups count:', availableRes.data.length);
+      console.log('📊 My groups count:', myGroupsRes.data.length);
       
       if (availableRes.data.length > 0) {
-        console.log('📊 Found groups:', availableRes.data.map(g => g.name));
+        console.log('📊 Found groups:', availableRes.data.map(g => ({ name: g.name, type: g.type, faculty: g.faculty })));
       } else {
         console.log('⚠️ No groups found matching criteria');
+        console.log('💡 Try clearing filters or check if groups exist in database');
       }
 
       setMyGroups(myGroupsRes.data);
       setAvailableGroups(availableRes.data);
       setPendingRequests(pendingRes.data);
     } catch (error) {
+      console.error('❌ Fetch error:', error);
+      if (error.response) {
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+      }
       toast.error('Failed to fetch study groups');
-      console.error('Fetch error:', error);
     } finally {
       setLoading(false);
     }

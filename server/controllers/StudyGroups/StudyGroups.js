@@ -45,6 +45,17 @@ const createStudyGroup = async (req, res) => {
     });
 
     console.log('✅ Study group created:', studyGroup._id);
+    console.log('📊 Group details:', {
+      id: studyGroup._id,
+      name: studyGroup.name,
+      isActive: studyGroup.isActive,
+      createdAt: studyGroup.createdAt
+    });
+    
+    // Verify it was saved
+    const verifyGroup = await StudyGroup.findById(studyGroup._id);
+    console.log('✅ Verification - Group found in DB:', !!verifyGroup);
+    
     res.status(201).json(studyGroup);
   } catch (error) {
     console.error('❌ Error creating study group:', error);
@@ -62,6 +73,8 @@ const getAllStudyGroups = async (req, res) => {
 
     console.log('\n=== 🔍 GET ALL STUDY GROUPS ===');
     console.log('📥 Query params:', { faculty, type, academicYear, search });
+    console.log('👤 User ID:', req.user.id);
+    console.log('🔑 User role:', req.user.role);
 
     if (faculty && faculty !== 'all') {
       filter.faculty = faculty;
@@ -87,12 +100,34 @@ const getAllStudyGroups = async (req, res) => {
       ];
     }
 
+    console.log('📊 Final filter:', JSON.stringify(filter, null, 2));
+
     const studyGroups = await StudyGroup.find(filter)
       .populate('owner', 'name avatar')
       .populate('members.user', 'name avatar')
       .sort('-createdAt');
 
     console.log(`📊 Found ${studyGroups.length} group(s) matching criteria`);
+    
+    // Log the first few groups to see what's being returned
+    if (studyGroups.length > 0) {
+      console.log('📋 First few groups:');
+      studyGroups.slice(0, 3).forEach(group => {
+        console.log(`   - ${group.name} (${group._id}) - Active: ${group.isActive}`);
+      });
+    } else {
+      // If no groups found, check if there are ANY groups in the database
+      const allGroups = await StudyGroup.find({});
+      console.log(`⚠️ No groups with filter. Total groups in DB: ${allGroups.length}`);
+      if (allGroups.length > 0) {
+        console.log('📋 All groups in DB (without filter):');
+        allGroups.forEach(group => {
+          console.log(`   - ${group.name} (Active: ${group.isActive}, Type: ${group.type}, Faculty: ${group.faculty})`);
+        });
+      } else {
+        console.log('📋 No study groups exist in the database at all!');
+      }
+    }
 
     const groupsWithDetails = studyGroups.map(group => {
       const userMembership = group.members.find(m => 
@@ -117,6 +152,9 @@ const getAllStudyGroups = async (req, res) => {
 // @access  Private
 const getMyStudyGroups = async (req, res) => {
   try {
+    console.log('\n=== 🔍 GET MY STUDY GROUPS ===');
+    console.log('👤 User ID:', req.user.id);
+    
     const studyGroups = await StudyGroup.find({
       'members.user': req.user.id,
       'members.status': 'approved'
@@ -124,6 +162,8 @@ const getMyStudyGroups = async (req, res) => {
       .populate('owner', 'name avatar')
       .populate('members.user', 'name avatar')
       .sort('-updatedAt');
+
+    console.log(`📊 Found ${studyGroups.length} groups for user`);
 
     const groupsWithDetails = studyGroups.map(group => ({
       ...group.toObject(),

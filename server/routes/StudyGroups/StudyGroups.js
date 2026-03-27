@@ -61,6 +61,38 @@ router.use((req, res, next) => {
   next();
 });
 
+// DEBUG ROUTE - Add this to check all groups in database
+router.get('/debug/all', protect, async (req, res) => {
+  try {
+    const StudyGroup = require('../../models/StudyGroups/StudyGroups');
+    const allGroups = await StudyGroup.find({});
+    console.log('\n=== 🔍 DEBUG - All groups in database ===');
+    console.log(`Total groups: ${allGroups.length}`);
+    allGroups.forEach(group => {
+      console.log(`- ${group.name} (ID: ${group._id})`);
+      console.log(`  Active: ${group.isActive}`);
+      console.log(`  Type: ${group.type}`);
+      console.log(`  Faculty: ${group.faculty}`);
+      console.log(`  Members: ${group.members.length}`);
+      console.log('---');
+    });
+    res.json({ 
+      total: allGroups.length,
+      groups: allGroups.map(g => ({
+        id: g._id,
+        name: g.name,
+        isActive: g.isActive,
+        type: g.type,
+        faculty: g.faculty,
+        memberCount: g.members.length
+      }))
+    });
+  } catch (error) {
+    console.error('Debug error:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
 router.route('/')
   .get(protect, getAllStudyGroups)
   .post(protect, createStudyGroup);
