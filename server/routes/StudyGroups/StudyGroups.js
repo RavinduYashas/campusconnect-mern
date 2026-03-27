@@ -61,34 +61,60 @@ router.use((req, res, next) => {
   next();
 });
 
-// DEBUG ROUTE - Add this to check all groups in database
+// DEBUG ROUTE - Add this endpoint
 router.get('/debug/all', protect, async (req, res) => {
   try {
     const StudyGroup = require('../../models/StudyGroups/StudyGroups');
-    const allGroups = await StudyGroup.find({});
+    const allGroups = await StudyGroup.find({})
+      .populate('owner', 'name avatar')
+      .populate('members.user', 'name avatar');
+    
     console.log('\n=== 🔍 DEBUG - All groups in database ===');
     console.log(`Total groups: ${allGroups.length}`);
-    allGroups.forEach(group => {
-      console.log(`- ${group.name} (ID: ${group._id})`);
-      console.log(`  Active: ${group.isActive}`);
-      console.log(`  Type: ${group.type}`);
-      console.log(`  Faculty: ${group.faculty}`);
-      console.log(`  Members: ${group.members.length}`);
-      console.log('---');
+    
+    const groupsData = allGroups.map(g => ({
+      id: g._id,
+      name: g.name,
+      isActive: g.isActive,
+      type: g.type,
+      faculty: g.faculty,
+      academicYear: g.academicYear,
+      memberCount: g.members.filter(m => m.status === 'approved').length,
+      owner: g.owner ? g.owner.name : 'Unknown'
+    }));
+    
+    console.log('Groups:', groupsData);
+    res.json({ 
+      total: allGroups.length,
+      groups: groupsData
     });
+  } catch (error) {
+    console.error('Debug error:', error);
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Add a simple test endpoint without authentication for testing
+router.get('/public/all', async (req, res) => {
+  try {
+    const StudyGroup = require('../../models/StudyGroups/StudyGroups');
+    const allGroups = await StudyGroup.find({})
+      .populate('owner', 'name avatar')
+      .limit(10);
+    
     res.json({ 
       total: allGroups.length,
       groups: allGroups.map(g => ({
         id: g._id,
         name: g.name,
-        isActive: g.isActive,
+        description: g.description,
         type: g.type,
         faculty: g.faculty,
+        isActive: g.isActive,
         memberCount: g.members.length
       }))
     });
   } catch (error) {
-    console.error('Debug error:', error);
     res.status(500).json({ message: error.message });
   }
 });

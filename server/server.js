@@ -86,12 +86,19 @@ app.get('/', (req, res) => {
     res.send('API is running...');
 });
 
-// Define Routes
+// ========== IMPORTANT: ALL API ROUTES MUST BE BEFORE THE CATCH-ALL ==========
+// Define all your API routes here
+
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/clubs', require('./routes/clubRoutes'));
 app.use('/api/sports', require('./routes/sportRoutes'));
+app.use('/api/qa', require('./routes/QA/qaRoutes'));
+app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
+app.use('/api/study-groups', require('./routes/StudyGroups/StudyGroups'));
+app.use('/api/workshops', require('./routes/Workshops/Workshops'));
 
-// Return JSON for unknown /api routes instead of HTML 404 (helps devtools)
+// ========== CATCH-ALL FOR UNKNOWN API ROUTES - THIS MUST BE LAST ==========
+// Return JSON for unknown /api routes instead of HTML 404
 app.use('/api', (req, res) => {
     res.status(404).json({ message: `API route not found: ${req.method} ${req.originalUrl}` });
 });
@@ -107,32 +114,35 @@ const listRoutes = () => {
                 routes.push(`${methods} ${middleware.route.path}`);
             } else if (middleware.name === 'router') {
                 // router middleware
-                middleware.handle.stack.forEach((handler) => {
-                    if (handler.route) {
-                        const methods = Object.keys(handler.route.methods).join(',').toUpperCase();
-                        routes.push(`${methods} ${handler.route.path}`);
-                    }
-                });
+                if (middleware.handle && middleware.handle.stack) {
+                    middleware.handle.stack.forEach((handler) => {
+                        if (handler.route) {
+                            const methods = Object.keys(handler.route.methods).join(',').toUpperCase();
+                            // Get the base path for this router
+                            let basePath = '';
+                            if (middleware.regexp) {
+                                const path = middleware.regexp.source
+                                    .replace(/\\/g, '')
+                                    .replace(/\^/g, '')
+                                    .replace(/\$\//g, '')
+                                    .replace(/\?/g, '');
+                                basePath = path;
+                            }
+                            routes.push(`${methods} /api${basePath}${handler.route.path}`);
+                        }
+                    });
+                }
             }
         });
-        console.log('Registered routes:\n' + routes.join('\n'));
+        console.log('\n=== REGISTERED ROUTES ===');
+        routes.forEach(route => console.log(route));
+        console.log('========================\n');
     } catch (err) {
         console.error('Could not list routes', err);
     }
 };
 
 listRoutes();
-app.use('/api/qa', require('./routes/QA/qaRoutes'));
-app.use('/api/notifications', require('./routes/QA/notificationRoutes')); // Add notification routes
-app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
-
-// STUDY GROUP ROUTES - Use this path if your file is directly in routes folder
-// Change this line to match where your file actually is
-app.use('/api/study-groups', require('./routes/StudyGroups/StudyGroups'));
-app.use('/api/workshops', require('./routes/Workshops/Workshops'));
-
-// NOT this path:
-// app.use('/api/study-groups', require('./routes/StudyGroups/studyGroupRoutes'));
 
 const PORT = process.env.PORT || 5000;
 
