@@ -297,6 +297,30 @@ const deleteUser = async (req, res) => {
     }
 };
 
+// @desc    Toggle Batch Rep status
+// @route   PUT /api/users/toggle-rep/:id
+// @access  Private/Admin
+const toggleRep = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (user) {
+            if (user.role !== 'student') {
+                return res.status(400).json({ message: 'Only students can be batch representatives' });
+            }
+            user.isBatchRep = !user.isBatchRep;
+            const updatedUser = await user.save();
+            res.json({
+                _id: updatedUser._id,
+                isBatchRep: updatedUser.isBatchRep
+            });
+        } else {
+            res.status(404).json({ message: 'User not found' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // Helper to get next available expert email
 const getNextExpertEmail = async () => {
     // Find all users with the expert email pattern
@@ -536,4 +560,5 @@ module.exports = {
     verifyOTP,
     adminCreateUser,
     getExpertCount,
+    toggleRep,
 };
