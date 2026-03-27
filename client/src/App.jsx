@@ -22,6 +22,10 @@ import SportsTeamList from './pages/adminDashboard/sports/SportsTeamList';
 import AdminLayout from './components/admin/AdminLayout';
 import ClientLayout from './components/ClientLayout';
 import BatchRepManagement from './pages/adminDashboard/BatchRepManagement';
+import BatchRepDashboard from './pages/BatchRepDashboard';
+import WorkshopDetails from './pages/Workshops/WorkshopDetails';
+
+
 
 
 function App() {
@@ -57,6 +61,10 @@ function App() {
           <Route path="/sports" element={<Sports />} />
           <Route path="/workshops" element={<Workshops />} />
           <Route path="batch-reps" element={<BatchRepManagement />} />
+          <Route path="/batch-rep-dashboard" element={<BatchRepDashboard />} />
+          <Route path="/workshops/:id" element={<WorkshopDetails />} />
+
+
 
         </Route>
       </Routes>

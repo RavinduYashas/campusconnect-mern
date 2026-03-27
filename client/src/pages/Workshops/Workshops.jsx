@@ -6,6 +6,8 @@ import { toast } from 'react-hot-toast';
 import WorkshopCard from '../../components/Workshops/WorkshopCard';
 import CreateWorkshopModal from '../../components/Workshops/CreateWorkshopModal';
 import RequestWorkshopModal from '../../components/Workshops/RequestWorkshopModal';
+import BatchRepRequests from '../../components/Workshops/BatchRepRequests';
+
 
 const Workshops = () => {
   const [workshops, setWorkshops] = useState([]);
