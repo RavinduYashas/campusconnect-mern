@@ -1,9 +1,7 @@
 .sports-page { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
 
 .sports-hero {
-  background: linear-gradient(180deg, rgba(255,249,241,1) 0%, rgba(252,254,255,1) 100%);
   border-radius: 18px;
-  padding: 2rem 0;
   margin-bottom: 1rem;
 }
 

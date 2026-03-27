@@ -10,6 +10,7 @@ const SportsTeamList = () => {
     const [members, setMembers] = useState([]);
     const [formerMembers, setFormerMembers] = useState([]);
     const [requests, setRequests] = useState([]);
+    const [globalRequests, setGlobalRequests] = useState([]);
     const [showAllMembers, setShowAllMembers] = useState(false);
     const [allMembers, setAllMembers] = useState([]);
     const [allMembersError, setAllMembersError] = useState('');
@@ -136,6 +137,61 @@ const SportsTeamList = () => {
     };
 
     useEffect(() => { loadTeams(); }, [page, limit, searchTerm, filterIsActive, minMembers]);
+
+    const fetchGlobalRequests = async (sportsArray) => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        try {
+            const allReqs = [];
+            await Promise.all(sportsArray.map(async (sp) => {
+                const id = sp._id || sp.id;
+                try {
+                    const res = await fetch(`/api/sports/${id}/requests`, { headers: { Authorization: `Bearer ${token}` } });
+                    if (res.ok) {
+                        const reqs = await res.json();
+                        if (Array.isArray(reqs)) {
+                            reqs.forEach(r => {
+                                r.sportName = sp.name;
+                                r.sportId = id;
+                                allReqs.push(r);
+                            });
+                        }
+                    }
+                } catch(e) {}
+            }));
+            setGlobalRequests(allReqs);
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    useEffect(() => {
+        if (teams.length > 0) {
+            fetchGlobalRequests(teams);
+        } else {
+            setGlobalRequests([]);
+        }
+    }, [teams]);
+
+    const handleGlobalApprove = async (sportId, reqId) => {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`/api/sports/${sportId}/requests/${reqId}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) throw new Error('Approve failed');
+            alert('Approved');
+            loadTeams();
+        } catch (e) { alert(e.message); }
+    };
+
+    const handleGlobalReject = async (sportId, reqId) => {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`/api/sports/${sportId}/requests/${reqId}/reject`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) throw new Error('Reject failed');
+            alert('Rejected');
+            loadTeams();
+        } catch (e) { alert(e.message); }
+    };
 
     const handleCreate = () => { setEditing(null); setShowForm(true); };
 
@@ -323,6 +379,35 @@ const SportsTeamList = () => {
                     <button onClick={loadAllMembers} className="btn-outline ml-2">All Members</button>
                 </div>
             </div>
+
+            {globalRequests.length > 0 && (
+                <div className="mb-6 bg-orange-50 p-6 rounded-2xl border border-orange-200 shadow-sm">
+                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-orange-900">
+                        <span>⏳</span> Pending Join Requests
+                    </h3>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {globalRequests.map(r => (
+                            <div key={r._id} className="bg-white p-5 rounded-xl border border-orange-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                                <div>
+                                    <h4 className="font-bold text-gray-800 text-lg">{r.user?.name || 'Unknown User'}</h4>
+                                    <p className="text-sm text-gray-500">{r.user?.email}</p>
+                                    <div className="mt-3 text-xs font-bold px-3 py-1 bg-blue-50 text-[#1E3A8A] border border-blue-100 rounded-lg inline-block">
+                                        Team: {r.sportName}
+                                    </div>
+                                    <div className="text-xs font-bold px-3 py-1 bg-orange-100 text-orange-800 border border-orange-200 rounded-lg inline-block ml-2">
+                                        Status: {r.status}
+                                    </div>
+                                    {r.message && <p className="mt-3 text-sm italic text-gray-600 bg-gray-50 p-2 rounded-lg">"{r.message}"</p>}
+                                </div>
+                                <div className="mt-4 flex gap-2">
+                                    <button onClick={() => handleGlobalApprove(r.sportId, r._id)} className="flex-1 bg-[#F97316] hover:bg-[#EA580C] text-white font-bold py-2 rounded-lg transition-colors text-sm shadow-sm">Approve</button>
+                                    <button onClick={() => handleGlobalReject(r.sportId, r._id)} className="flex-1 bg-white border border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-gray-700 font-bold py-2 rounded-lg transition-colors text-sm shadow-sm">Reject</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {showForm && (
                 <div className="mb-6">

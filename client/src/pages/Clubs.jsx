@@ -24,6 +24,8 @@ const Clubs = () => {
     const [userRequests, setUserRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [loadingRequests, setLoadingRequests] = useState(false);
+    const [selectedClub, setSelectedClub] = useState(null);
+    const [loadingMembers, setLoadingMembers] = useState(false);
 
     useEffect(() => {
         // Attempt to fetch clubs from backend if available. If endpoint is missing,
@@ -71,52 +73,81 @@ const Clubs = () => {
         fetchMyRequests();
     }, []);
 
+    const handleViewMembers = async (clubId) => {
+        setLoadingMembers(clubId);
+        try {
+            const res = await fetch(`/api/clubs/${clubId}`);
+            if (!res.ok) throw new Error('Failed to fetch club details');
+            const data = await res.json();
+            setSelectedClub(data);
+        } catch (err) {
+            console.error(err);
+            alert('Could not load club members');
+        } finally {
+            setLoadingMembers(false);
+        }
+    };
+
     return (
         <div className="clubs-page">
-            <header className="clubs-hero">
-                <div className="container mx-auto px-6 py-12">
-                    <h1 className="text-4xl md:text-5xl font-extrabold text-primary mb-4">Clubs & Societies Management</h1>
-                    <p className="text-text-secondary max-w-3xl mx-auto mb-8">Discover, join and manage campus organizations — clubs and societies. Students can explore opportunities, attend events and lead initiatives with integrated admin controls.</p>
+            <header className="relative overflow-hidden bg-gradient-to-br from-[#1E3A8A] to-[#1e4fc2] rounded-3xl mx-4 mt-4 mb-8 shadow-xl">
+                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                <div className="absolute -top-24 -right-24 w-80 h-80 bg-blue-500 rounded-full mix-blend-overlay filter blur-3xl opacity-30 animate-pulse-slow"></div>
+                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-blue-400 rounded-full mix-blend-overlay filter blur-3xl opacity-30"></div>
+                
+                <div className="relative container mx-auto px-6 py-10 md:py-12 text-center">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/20 backdrop-blur-md text-white text-xs font-bold uppercase tracking-widest mb-4">
+                        <span>🏛️</span> Campus Organisations
+                    </div>
+                    <h1 className="text-3xl md:text-5xl font-extrabold text-white mb-4 tracking-tight drop-shadow-md">
+                        Clubs & <span className="text-blue-300">Societies</span>
+                    </h1>
+                    <p className="text-blue-100 text-base md:text-lg max-w-2xl mx-auto mb-8 leading-relaxed font-medium">
+                        Discover, join and lead campus organizations. Students can explore opportunities, attend events and drive initiatives with integrated admin controls.
+                    </p>
                     <div className="flex gap-4 justify-center">
-                        <Link to="#club-list" className="btn-primary">Explore Clubs</Link>
-                        <button onClick={() => navigate('/admin/clubs')} className="btn-outline">Admin: Manage</button>
+                        <a href="#club-list" className="bg-white hover:bg-gray-100 text-[#1E3A8A] px-6 py-2.5 rounded-xl font-bold text-base shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                            Explore Clubs ↓
+                        </a>
                     </div>
                 </div>
             </header>
 
             <main className="container mx-auto px-6 py-12 grid gap-8 lg:grid-cols-2 items-start">
-                <section className="panel">
-                    <h2 className="panel-title">What Students Can Do?</h2>
-                    <ul className="panel-list">
+                <section className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-blue-50 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-shadow duration-300">
+                    <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl mb-6 shadow-inner">🎓</div>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-6 font-heading">What Students Can Do</h2>
+                    <ul className="space-y-4">
                         {sampleFeaturesLeft.map((f, i) => (
-                            <li key={i} className="panel-item">{f}</li>
+                            <li key={i} className="flex items-start gap-3 text-gray-600"><span className="text-orange-500 mt-1 flex-shrink-0">✦</span> {f}</li>
                         ))}
                     </ul>
                 </section>
 
-                <section className="panel">
-                    <h2 className="panel-title">Key Features?</h2>
-                    <ul className="panel-list">
+                <section className="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-blue-50 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-shadow duration-300">
+                    <div className="w-14 h-14 bg-orange-100 text-orange-600 rounded-2xl flex items-center justify-center text-2xl mb-6 shadow-inner">⚙️</div>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-6 font-heading">Key Features</h2>
+                    <ul className="space-y-4">
                         {sampleFeaturesRight.map((f, i) => (
-                            <li key={i} className="panel-item">{f}</li>
+                            <li key={i} className="flex items-start gap-3 text-gray-600"><span className="text-blue-500 mt-1 flex-shrink-0">✦</span> {f}</li>
                         ))}
                     </ul>
                 </section>
 
-                <section className="col-span-full mt-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100" id="club-list">
+                <section className="col-span-full mt-6 bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-50" id="club-list">
                     {userRequests && userRequests.length > 0 && (
-                        <div className="mb-4">
-                            <h3 className="text-xl font-semibold mb-2">Your Pending Requests</h3>
-                            <div className="space-y-2">
+                        <div className="mb-8 bg-orange-50/50 p-6 rounded-2xl border border-orange-200/60 shadow-inner">
+                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-orange-900"><span>⏳</span> Your Pending Requests</h3>
+                            <div className="space-y-3">
                                 {userRequests.map((r) => (
-                                    <div key={r._id || r.id} className="p-3 border rounded-md flex items-center justify-between">
+                                    <div key={r._id || r.id} className="p-4 bg-white border border-orange-100 rounded-xl flex items-center justify-between shadow-sm">
                                         <div>
-                                            <div className="font-medium">{r.club?.name || 'Unknown Club'}</div>
-                                            <div className="text-sm text-gray-500">{r.status}</div>
+                                            <div className="font-bold text-gray-800">{r.club?.name || 'Unknown Club'}</div>
+                                            <div className="text-xs font-semibold px-2.5 py-1 bg-orange-100 text-orange-700 rounded-full inline-block mt-2 capitalize">{r.status}</div>
                                         </div>
                                         <div>
                                             <button
-                                                className="btn-sm btn-outline mr-2"
+                                                className="text-sm text-red-600 hover:text-red-800 font-medium px-4 py-2 border border-red-200 hover:bg-red-50 rounded-lg transition-colors"
                                                 onClick={async () => {
                                                     const token = localStorage.getItem('token');
                                                     if (!token) return alert('Please login');
@@ -135,7 +166,7 @@ const Clubs = () => {
                                                     }
                                                 }}
                                             >
-                                                Cancel
+                                                Cancel Request
                                             </button>
                                         </div>
                                     </div>
@@ -143,7 +174,10 @@ const Clubs = () => {
                             </div>
                         </div>
                     )}
-                    <h3 className="text-2xl font-bold mb-3">Available Clubs</h3>
+                    <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
+                        <h3 className="text-3xl font-extrabold text-gray-800 font-heading tracking-tight">Available Clubs</h3>
+                        {!loading && <span className="px-4 py-1.5 bg-blue-50 text-blue-700 font-bold rounded-full text-sm border border-blue-100 shadow-sm">{clubs.length} clubs</span>}
+                    </div>
                     {loading ? (
                         <p className="text-text-secondary">Loading clubs...</p>
                     ) : (
@@ -151,12 +185,16 @@ const Clubs = () => {
                             {clubs.map((c) => {
                                 const clubId = c._id || c.id;
                                 return (
-                                    <article key={clubId} className="club-card">
-                                        <h4 className="club-name">{c.name}</h4>
-                                        <p className="club-desc">{c.description}</p>
-                                        <div className="mt-3 flex gap-2">
+                                    <article key={clubId} className="group flex flex-col items-start bg-gradient-to-b from-white to-gray-50/50 p-6 rounded-2xl border border-gray-100 hover:border-blue-200 shadow-sm hover:shadow-xl transition-all duration-300">
+                                        <div className="w-12 h-12 bg-blue-50 text-blue-800 rounded-xl flex items-center justify-center font-bold text-xl mb-4 group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                                            {c.name.charAt(0)}
+                                        </div>
+                                        <h4 className="text-xl font-bold text-gray-800 mb-2 font-heading">{c.name}</h4>
+                                        <p className="text-gray-500 text-sm leading-relaxed mb-6 flex-grow">{c.description}</p>
+                                        <div className="flex gap-3 w-full mt-auto">
                                             <button
-                                                className="btn-sm btn-primary"
+                                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-3 rounded-lg text-sm transition-colors duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+
                                                 onClick={async () => {
                                                     const token = localStorage.getItem('token');
                                                     if (!token) return navigate('/login');
@@ -187,9 +225,15 @@ const Clubs = () => {
                                                     }
                                                 }}
                                             >
-                                                Apply / Join
+                                                <span>✚</span> Apply
                                             </button>
-                                            <Link to={`/profiles`} className="btn-sm btn-outline">View Members</Link>
+                                            <button 
+                                                className="flex-1 bg-white hover:bg-gray-50 text-gray-700 font-semibold py-2.5 px-3 rounded-lg text-sm border border-gray-200 transition-colors duration-200 shadow-sm flex items-center justify-center gap-2"
+                                                onClick={() => handleViewMembers(clubId)}
+                                                disabled={loadingMembers === clubId}
+                                            >
+                                                <span>👥</span> {loadingMembers === clubId ? 'Loading...' : 'Members'}
+                                            </button>
                                         </div>
                                     </article>
                                 );
@@ -198,6 +242,47 @@ const Clubs = () => {
                     )}
                 </section>
             </main>
+
+            {selectedClub && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col transform transition-all">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-800">{selectedClub.name} Members</h2>
+                                <p className="text-sm text-gray-500 mt-1">{selectedClub.members?.length || 0} active members</p>
+                            </div>
+                            <button 
+                                onClick={() => setSelectedClub(null)}
+                                className="w-10 h-10 rounded-full bg-white border border-gray-200 hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-colors shadow-sm"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto custom-scrollbar flex-grow">
+                            {selectedClub.members && selectedClub.members.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {selectedClub.members.map(member => (
+                                        <div key={member._id} className="flex flex-col items-center gap-3 p-5 border border-gray-100 rounded-2xl hover:border-[#1E3A8A]/30 transition-colors bg-white shadow-sm hover:shadow-md text-center">
+                                            <img src={member.avatar ? `/${member.avatar}` : '/avatars/avatar1.png'} alt={member.name} className="w-16 h-16 rounded-full border-2 border-[#1E3A8A]/10 object-cover shadow-sm" />
+                                            <div>
+                                                <h4 className="font-bold text-gray-800 text-sm w-full truncate px-2">{member.name}</h4>
+                                                <p className="text-xs text-gray-500 w-full truncate px-2 mt-1">{member.email}</p>
+                                            </div>
+                                            <Link to={`/profile/${member._id}`} className="mt-2 text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-lg w-full">View Profile</Link>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-2xl mx-4 my-2">
+                                    <div className="text-4xl mb-4">📭</div>
+                                    <h3 className="text-lg font-bold text-gray-700">No Members Yet</h3>
+                                    <p className="text-gray-500 text-sm mt-2">There are currently no users in this club.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
