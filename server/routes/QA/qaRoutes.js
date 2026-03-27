@@ -24,7 +24,10 @@ const {
     getQuestionDetailAdmin,
     adminRemoveMemberFromGroup,
     adminBanUser,
-    adminUnbanUser
+    adminUnbanUser,
+    adminCreateGroup,
+    adminUpdateGroup,
+    adminDeleteGroup
 } = require("../../controllers/QA/qaController");
 const { protect } = require("../../middleware/authMiddleware");
 const { roleAuthorize } = require("../../middleware/roleMiddleware");
@@ -38,6 +41,9 @@ router.get("/admin/questions", roleAuthorize("admin"), getAllQuestions);
 router.get("/admin/questions/:id", roleAuthorize("admin"), getQuestionDetailAdmin);
 router.get("/admin/answers", roleAuthorize("admin"), getAllAnswers);
 router.get("/admin/groups", roleAuthorize("admin"), getAllGroupsAdmin);
+router.post("/admin/groups", roleAuthorize("admin"), adminCreateGroup);
+router.put("/admin/groups/:id", roleAuthorize("admin"), adminUpdateGroup);
+router.delete("/admin/groups/:id", roleAuthorize("admin"), adminDeleteGroup);
 router.get("/admin/groups/:id", roleAuthorize("admin"), getGroupByIdAdmin);
 router.post("/admin/groups/:groupId/members/:userId/remove", roleAuthorize("admin"), adminRemoveMemberFromGroup);
 router.post("/admin/members/:userId/ban", roleAuthorize("admin"), adminBanUser);

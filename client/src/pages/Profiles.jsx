@@ -78,7 +78,13 @@ const Profiles = () => {
     };
 
     const handleInputChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        if (name === 'name') {
+            const lettersOnly = value.replace(/[^a-zA-Z\s]/g, '');
+            setFormData({ ...formData, [name]: lettersOnly });
+        } else {
+            setFormData({ ...formData, [name]: value });
+        }
     };
 
     const handleProfessionalInfoChange = (index, e) => {
@@ -482,15 +488,17 @@ const Profiles = () => {
                                             <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-4">
                                                 {user.role === 'admin' ? 'System Overview' : 'Platform Stats'}
                                             </h3>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="bg-white rounded-xl p-4 shadow-sm text-center">
-                                                    <div className="text-xl font-bold text-text-main">
-                                                        {user.role === 'admin' ? 'ALL' : (qaData.stats.totalPosts || 0)}
+                                            <div className={`grid gap-4 ${user.role === 'expert' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                                                {user.role !== 'expert' && (
+                                                    <div className="bg-white rounded-xl p-4 shadow-sm text-center">
+                                                        <div className="text-xl font-bold text-text-main">
+                                                            {user.role === 'admin' ? 'ALL' : (qaData.stats.totalPosts || 0)}
+                                                        </div>
+                                                        <div className="text-xs text-text-secondary uppercase font-bold tracking-tighter">
+                                                            {user.role === 'admin' ? 'Access' : 'Posts'}
+                                                        </div>
                                                     </div>
-                                                    <div className="text-xs text-text-secondary uppercase font-bold tracking-tighter">
-                                                        {user.role === 'admin' ? 'Access' : 'Posts'}
-                                                    </div>
-                                                </div>
+                                                )}
                                                 <div className="bg-white rounded-xl p-4 shadow-sm text-center">
                                                     <div className="text-xl font-bold text-text-main uppercase">
                                                         {user.role === 'admin' ? 'Live' : (qaData.stats.totalAnswers || 0)}
@@ -503,7 +511,7 @@ const Profiles = () => {
                                                     <>
                                                         <div className="bg-white rounded-xl p-4 shadow-sm text-center border-t-2 border-green-500/20">
                                                             <div className="text-xl font-bold text-green-600">
-                                                                {qaData.stats.solvedSolutions || 0}
+                                                                 {qaData.stats.solvedSolutions || 0}
                                                             </div>
                                                             <div className="text-xs text-text-secondary uppercase font-bold tracking-tighter">
                                                                 Solved
@@ -599,7 +607,7 @@ const Profiles = () => {
                             className="bg-white rounded-[2.5rem] w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl"
                             onClick={e => e.stopPropagation()}
                         >
-                            <div className="p-8 h-full flex flex-col">
+                            <div className="p-8 max-h-[90vh] flex flex-col">
                                 <div className="flex justify-between items-start mb-6">
                                     <div className="flex items-center gap-3">
                                         <div className="bg-primary/10 p-3 rounded-2xl">
@@ -624,7 +632,7 @@ const Profiles = () => {
                                     </button>
                                 </div>
 
-                                <div className="flex-grow overflow-y-auto custom-scrollbar pr-2 space-y-6">
+                                <div className="flex-grow overflow-y-auto pr-2 space-y-6 min-h-0">
                                     <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
                                         <p className="text-text-main leading-relaxed mb-4">{selectedQA.description}</p>
                                         {selectedQA.code && <CodeBlock code={selectedQA.code} language={selectedQA.language} />}

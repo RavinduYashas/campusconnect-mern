@@ -10,7 +10,8 @@ const QADashboard = () => {
         totalAnswers: 0,
         totalGroups: 0,
         totalExperts: 0,
-        totalStudents: 0
+        totalStudents: 0,
+        unansweredQuestions: 0
     });
 
     const [recentActivity, setRecentActivity] = useState({
@@ -240,12 +241,17 @@ const QADashboard = () => {
                         </h3>
                         <div className="space-y-4">
                             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20">
-                                <p className="text-sm font-bold opacity-80 uppercase tracking-widest text-[10px]">Unsolved Questions</p>
-                                <p className="text-3xl font-black tabular-nums">{stats.totalQuestions - stats.resolvedQuestions}</p>
+                                <p className="text-sm font-bold opacity-80 uppercase tracking-widest text-[10px]">Unanswered Questions</p>
+                                <p className="text-3xl font-black tabular-nums">{stats.unansweredQuestions}</p>
                             </div>
                             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20">
-                                <p className="text-sm font-bold opacity-80 uppercase tracking-widest text-[10px]">Expert Response Rate</p>
-                                <p className="text-3xl font-black tabular-nums">{Math.round((stats.totalAnswers / (stats.totalQuestions || 1)) * 100)}%</p>
+                                <p className="text-sm font-bold opacity-80 uppercase tracking-widest text-[10px]">Student / Expert Ratio</p>
+                                <div className="flex items-baseline gap-2">
+                                    <p className="text-3xl font-black tabular-nums">{(stats.totalStudents / (stats.totalExperts || 1)).toFixed(1)}:1</p>
+                                    <p className="text-[9px] font-bold opacity-70 uppercase tracking-tighter">
+                                        — 1 Expert per {Math.ceil(stats.totalStudents / (stats.totalExperts || 1))} students
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
