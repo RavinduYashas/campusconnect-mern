@@ -1,9 +1,9 @@
+// controllers/userController.js
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const OTP = require('../models/OTP');
 const { sendVerificationEmail, sendWelcomeEmail } = require('../utils/emailUtils');
-
 
 // Generate JWT
 const generateToken = (id) => {
@@ -90,6 +90,8 @@ const loginUser = async (req, res) => {
                 email: user.email,
                 role: user.role,
                 avatar: user.avatar,
+                isBatchRep: user.isBatchRep || false,
+                batchRepDetails: user.batchRepDetails || {},
                 mustChangePassword: user.mustChangePassword,
                 token: generateToken(user.id),
             });
@@ -189,6 +191,8 @@ const updateProfile = async (req, res) => {
                 role: updatedUser.role,
                 avatar: updatedUser.avatar,
                 bio: updatedUser.bio,
+                isBatchRep: updatedUser.isBatchRep,
+                batchRepDetails: updatedUser.batchRepDetails,
                 academicInfo: updatedUser.academicInfo,
                 professionalInfo: updatedUser.professionalInfo,
                 profileCompleted: updatedUser.profileCompleted,
@@ -301,22 +305,49 @@ const deleteUser = async (req, res) => {
 // @route   PUT /api/users/toggle-rep/:id
 // @access  Private/Admin
 const toggleRep = async (req, res) => {
+    const { faculty, academicYear } = req.body;
+    
     try {
         const user = await User.findById(req.params.id);
-        if (user) {
-            if (user.role !== 'student') {
-                return res.status(400).json({ message: 'Only students can be batch representatives' });
-            }
-            user.isBatchRep = !user.isBatchRep;
-            const updatedUser = await user.save();
-            res.json({
-                _id: updatedUser._id,
-                isBatchRep: updatedUser.isBatchRep
-            });
-        } else {
-            res.status(404).json({ message: 'User not found' });
+        
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
         }
+        
+        if (user.role !== 'student') {
+            return res.status(400).json({ message: 'Only students can be batch representatives' });
+        }
+        
+        // Toggle the batch rep status
+        user.isBatchRep = !user.isBatchRep;
+        
+        // If making them a batch rep, add their faculty and year details
+        if (user.isBatchRep) {
+            if (!faculty || !academicYear) {
+                return res.status(400).json({ 
+                    message: 'Faculty and Academic Year are required to make a student a batch rep' 
+                });
+            }
+            user.batchRepDetails = {
+                faculty,
+                academicYear
+            };
+        } else {
+            // If removing batch rep status, clear the details
+            user.batchRepDetails = {};
+        }
+        
+        const updatedUser = await user.save();
+        
+        res.json({
+            _id: updatedUser._id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            isBatchRep: updatedUser.isBatchRep,
+            batchRepDetails: updatedUser.batchRepDetails
+        });
     } catch (error) {
+        console.error('Error toggling batch rep:', error);
         res.status(500).json({ message: error.message });
     }
 };
@@ -359,9 +390,6 @@ const getExpertCount = async (req, res) => {
     console.log('--- GET expert-count hit ---');
     try {
         const { id } = await getNextExpertEmail();
-        // We return id - 1 so the frontend's (expertCount + 1) logic still works if not updated,
-        // but it's better to update frontend too. For now, let's keep it compatible.
-        // Actually, if we return the count as (nextId - 1), then (count + 1) == nextId.
         res.status(200).json({ count: id - 1 });
     } catch (error) {
         console.error('--- Error in getExpertCount ---:', error);
@@ -370,7 +398,7 @@ const getExpertCount = async (req, res) => {
 };
 
 const adminCreateUser = async (req, res) => {
-    const { name, email: rawEmail, realEmail: rawRealEmail, password, role, field, year, semester } = req.body;
+    const { name, email: rawEmail, realEmail: rawRealEmail, password, role, field, year, semester, isBatchRep, faculty, academicYear } = req.body;
     let emailToUse = rawEmail?.trim()?.toLowerCase();
     const realEmail = rawRealEmail?.trim()?.toLowerCase();
 
@@ -410,6 +438,20 @@ const adminCreateUser = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
+        // Prepare batch rep data if applicable
+        let batchRepData = {};
+        if (role === 'student' && isBatchRep) {
+            if (!faculty || !academicYear) {
+                return res.status(400).json({ 
+                    message: 'Faculty and Academic Year are required for batch representatives' 
+                });
+            }
+            batchRepData = {
+                isBatchRep: true,
+                batchRepDetails: { faculty, academicYear }
+            };
+        }
+
         const user = await User.create({
             name,
             email: finalEmail,
@@ -419,6 +461,7 @@ const adminCreateUser = async (req, res) => {
             field: field || "General",
             avatar: role === 'expert' ? 'src/assets/images/Avatars/expert1.png' : "/avatars/avatar1.png",
             academicInfo: role === 'student' ? { year, semester } : undefined,
+            ...batchRepData,
             isVerified: true,
             profileCompleted: role === 'expert' ? false : true,
             mustChangePassword: role === 'expert' ? true : false
@@ -435,7 +478,9 @@ const adminCreateUser = async (req, res) => {
                 email: user.email,
                 realEmail: user.realEmail,
                 role: user.role,
-                academicInfo: user.academicInfo
+                academicInfo: user.academicInfo,
+                isBatchRep: user.isBatchRep,
+                batchRepDetails: user.batchRepDetails
             });
         } else {
             res.status(400).json({ message: 'Invalid user data' });

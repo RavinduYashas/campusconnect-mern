@@ -2,57 +2,35 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../../middleware/authMiddleware');
-const Workshop = require('../../models/Workshops/Workshops');
+const {
+  createWorkshop,
+  getAllWorkshops,
+  getWorkshopById,
+  registerForWorkshop,
+  cancelRegistration,
+  requestWorkshop,
+  getWorkshopRequests,
+  approveWorkshopRequest,
+  rejectWorkshopRequest,
+  voteForRequest,
+  updateWorkshopStatus
+} = require('../../controllers/Workshops/Workshops');
 
-// Get all workshops
-router.get('/', protect, async (req, res) => {
-  try {
-    const workshops = await Workshop.find({})
-      .populate('createdBy', 'name avatar')
-      .sort('-createdAt');
-    res.json(workshops);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+// Workshop CRUD
+router.get('/', protect, getAllWorkshops);
+router.get('/:id', protect, getWorkshopById);
+router.post('/', protect, createWorkshop);
+router.put('/:id/status', protect, updateWorkshopStatus);
 
-// Create workshop
-router.post('/', protect, async (req, res) => {
-  try {
-    const workshop = await Workshop.create({
-      ...req.body,
-      createdBy: req.user.id
-    });
-    res.status(201).json(workshop);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+// Workshop registration
+router.post('/:id/register', protect, registerForWorkshop);
+router.delete('/:id/cancel', protect, cancelRegistration);
 
-// Register for workshop
-router.post('/:id/register', protect, async (req, res) => {
-  try {
-    const workshop = await Workshop.findById(req.params.id);
-    
-    if (!workshop) {
-      return res.status(404).json({ message: 'Workshop not found' });
-    }
-    
-    if (workshop.attendees.includes(req.user.id)) {
-      return res.status(400).json({ message: 'Already registered' });
-    }
-    
-    if (workshop.attendees.length >= workshop.capacity) {
-      return res.status(400).json({ message: 'Workshop is full' });
-    }
-    
-    workshop.attendees.push(req.user.id);
-    await workshop.save();
-    
-    res.json({ message: 'Successfully registered' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+// Workshop requests
+router.post('/requests', protect, requestWorkshop);
+router.get('/requests/all', protect, getWorkshopRequests);
+router.put('/requests/:id/approve', protect, approveWorkshopRequest);
+router.put('/requests/:id/reject', protect, rejectWorkshopRequest);
+router.post('/requests/:id/vote', protect, voteForRequest);
 
 module.exports = router;

@@ -8,9 +8,10 @@ import ProfileView from './pages/ProfileView';
 import QA from './pages/QA';
 import Skills from './pages/Skills';
 import StudyGroups from './pages/StudyGroups/StudyGroups';
-import StudyGroupDetails from './pages/StudyGroups/StudyGroupDetails'; // Add this import
+import StudyGroupDetails from './pages/StudyGroups/StudyGroupDetails';
 import Clubs from './pages/Clubs';
 import Sports from './pages/Sports';
+import Workshops from './pages/Workshops/Workshops';
 import AdminDashboard from './pages/AdminDashboard';
 import ManageUsers from './pages/adminDashboard/studentProfiles/ManageUsers';
 import StudentList from './pages/adminDashboard/studentProfiles/StudentList';
@@ -20,7 +21,8 @@ import ClubList from './pages/adminDashboard/clubs/ClubList';
 import SportsTeamList from './pages/adminDashboard/sports/SportsTeamList';
 import AdminLayout from './components/admin/AdminLayout';
 import ClientLayout from './components/ClientLayout';
-import Workshops from './pages/Workshops/Workshops';
+import BatchRepManagement from './pages/adminDashboard/BatchRepManagement';
+
 
 function App() {
   return (
@@ -50,10 +52,12 @@ function App() {
           <Route path="/qa" element={<QA />} />
           <Route path="/skills" element={<Skills />} />
           <Route path="/groups" element={<StudyGroups />} />
-          <Route path="/study-groups/:id" element={<StudyGroupDetails />} /> {/* Add this route */}
+          <Route path="/study-groups/:id" element={<StudyGroupDetails />} />
           <Route path="/clubs" element={<Clubs />} />
           <Route path="/sports" element={<Sports />} />
-          <Route path="/Workshops" element={<Workshops />} />
+          <Route path="/workshops" element={<Workshops />} />
+          <Route path="batch-reps" element={<BatchRepManagement />} />
+
         </Route>
       </Routes>
     </Router>
