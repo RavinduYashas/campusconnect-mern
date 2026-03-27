@@ -7,6 +7,7 @@ const ClubList = () => {
     const [editing, setEditing] = useState(null);
     const [showForm, setShowForm] = useState(false);
     const [managing, setManaging] = useState(null);
+    const [showScheduleOverview, setShowScheduleOverview] = useState(false);
     const [members, setMembers] = useState([]);
     const [formerMembers, setFormerMembers] = useState([]);
     const [requests, setRequests] = useState([]);
@@ -301,7 +302,10 @@ const ClubList = () => {
                         <option value={12}>12</option>
                         <option value={24}>24</option>
                     </select>
-                    <button onClick={handleCreate} className="btn-primary mr-2">Create Club</button>
+                    <button onClick={() => setShowScheduleOverview(true)} className="btn-outline flex items-center gap-2">
+                        <span>📅</span> Schedules
+                    </button>
+                    <button onClick={handleCreate} className="btn-primary">Create Club</button>
                     <button onClick={loadAllMembers} className="btn-outline">All Members</button>
                 </div>
             </div>
@@ -386,13 +390,18 @@ const ClubList = () => {
                                 <div className="flex justify-between items-start">
                                     <div className="flex items-start gap-3">
                                         <input type="checkbox" checked={selectedIds.includes(c._id || c.id)} onChange={e => {
-                                            const id = c._id || c.id;
-                                            if (e.target.checked) setSelectedIds(prev => Array.from(new Set([...prev, id])));
-                                            else setSelectedIds(prev => prev.filter(x => x !== id));
+                                            const realId = c._id || c.id;
+                                            if (e.target.checked) setSelectedIds(prev => Array.from(new Set([...prev, realId])));
+                                            else setSelectedIds(prev => prev.filter(x => x !== realId));
                                         }} />
                                         <div>
                                             <h3 className="font-bold">{c.name}</h3>
-                                            <p className="text-sm text-text-secondary">Created by: {c.createdBy?.name || '—'}</p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="text-xs text-text-secondary">Type: {c.type || 'General'}</span>
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm ${c.nextSession?.date ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                    {c.nextSession?.date ? `📅 ${new Date(c.nextSession.date).toLocaleDateString()}` : '⏳ Pending'}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
@@ -521,6 +530,54 @@ const ClubList = () => {
                                         ))}
                                     </ul>
                                 )}
+                    </div>
+                </div>
+            )}
+
+            {/* Global Meeting Overview Modal */}
+            {showScheduleOverview && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden">
+                        <div className="bg-[#1E3A8A] p-6 text-white flex justify-between items-center">
+                            <div>
+                                <h3 className="text-xl font-bold">📅 Upcoming Meetings Overview</h3>
+                                <p className="text-blue-100 text-xs mt-1">Platform-wide meeting monitoring</p>
+                            </div>
+                            <button onClick={() => setShowScheduleOverview(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20">✕</button>
+                        </div>
+                        <div className="p-4 max-h-[60vh] overflow-y-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="border-b border-gray-100">
+                                        <th className="py-3 px-4 text-[10px] font-bold text-gray-400 uppercase">Club</th>
+                                        <th className="py-3 px-4 text-[10px] font-bold text-gray-400 uppercase">Next Meeting</th>
+                                        <th className="py-3 px-4 text-[10px] font-bold text-gray-400 uppercase">Location</th>
+                                        <th className="py-3 px-4 text-[10px] font-bold text-gray-400 uppercase">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {clubs.map(c => (
+                                        <tr key={c._id || c.id} className="border-b border-gray-50 hover:bg-blue-50/30">
+                                            <td className="py-4 px-4 font-bold text-gray-800 text-sm">{c.name}</td>
+                                            <td className="py-4 px-4">
+                                                {c.nextSession?.date ? (
+                                                    <span className="text-xs font-bold text-gray-700">{new Date(c.nextSession.date).toLocaleString()}</span>
+                                                ) : (
+                                                    <span className="text-xs font-bold text-orange-500">Pending</span>
+                                                )}
+                                            </td>
+                                            <td className="py-4 px-4 text-xs text-gray-600 truncate max-w-[120px]">{c.nextSession?.location || '—'}</td>
+                                            <td className="py-4 px-4">
+                                                <button onClick={() => { handleEdit(c); setShowScheduleOverview(false); }} className="text-xs font-bold text-blue-600 hover:underline">Edit</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="p-6 bg-gray-50 text-center">
+                            <button onClick={() => setShowScheduleOverview(false)} className="px-6 py-2.5 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl text-xs hover:bg-gray-100 transition-all shadow-sm">Done</button>
+                        </div>
                     </div>
                 </div>
             )}
