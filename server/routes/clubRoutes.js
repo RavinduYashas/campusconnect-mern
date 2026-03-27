@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createClub, getClubs, getClub, updateClub, deleteClub, joinClub, requestToJoin, getRequests, approveRequest, rejectRequest, removeMember, activateMember, getAllMembers, getAllClubs, activateClub, bulkUpdateClubs, getMyRequests, cancelRequest, getAllRequests } = require('../controllers/clubController');
+const { createClub, getClubs, getClub, updateClub, deleteClub, joinClub, requestToJoin, getRequests, approveRequest, rejectRequest, removeMember, activateMember, getAllMembers, getAllClubs, activateClub, bulkUpdateClubs, getMyRequests, cancelRequest, getAllRequests, setNextSession, toggleClubRsvp } = require('../controllers/clubController');
 const { protect, optionalProtect } = require('../middleware/authMiddleware');
 const { roleAuthorize } = require('../middleware/roleMiddleware');
 
@@ -39,5 +39,7 @@ router.post('/:id/requests/:reqId/reject', protect, rejectRequest);
 router.delete('/:id/members/:memberId', protect, removeMember);
 // reactivate former member
 router.post('/:id/members/:memberId/activate', protect, activateMember);
+router.post('/:id/next-session', protect, setNextSession);
+router.post('/:id/rsvp', protect, toggleClubRsvp);
 
 module.exports = router;

@@ -19,13 +19,24 @@ const createClub = async (req, res) => {
             if (isNaN(mm) || mm < 1) return res.status(400).json({ message: 'maxMembers must be a positive integer' });
         }
 
-        const club = await Club.create({
+        const payload = {
             name,
             description,
             coach,
             maxMembers: mm,
             createdBy: req.user ? req.user._id : undefined,
-        });
+        };
+
+        if (req.body.nextSession && req.body.nextSession.date) {
+            payload.nextSession = {
+                date: new Date(req.body.nextSession.date),
+                location: req.body.nextSession.location || '',
+                description: req.body.nextSession.description || '',
+                rsvps: []
+            };
+        }
+
+        const club = await Club.create(payload);
 
         res.status(201).json(club);
     } catch (error) {
@@ -229,6 +240,16 @@ const updateClub = async (req, res) => {
         }
 
         if (typeof req.body.isActive === 'boolean') club.isActive = req.body.isActive;
+
+        // Handle nextSession update
+        if (req.body.nextSession) {
+            club.nextSession = {
+                date: req.body.nextSession.date ? new Date(req.body.nextSession.date) : club.nextSession?.date,
+                location: typeof req.body.nextSession.location !== 'undefined' ? req.body.nextSession.location : (club.nextSession?.location || ''),
+                description: typeof req.body.nextSession.description !== 'undefined' ? req.body.nextSession.description : (club.nextSession?.description || ''),
+                rsvps: club.nextSession?.rsvps || []
+            };
+        }
 
         const updated = await club.save();
 
@@ -571,6 +592,70 @@ const getAllMembers = async (req, res) => {
     }
 };
 
+// Set next session for a club
+const setNextSession = async (req, res) => {
+    try {
+        const club = await Club.findById(req.params.id);
+        if (!club) return res.status(404).json({ message: 'Club not found' });
+        if (req.user.role !== 'admin' && (!club.createdBy || club.createdBy.toString() !== req.user._id.toString())) {
+            return res.status(403).json({ message: 'Not authorized' });
+        }
+        const { date, location, description } = req.body;
+        if (!date) return res.status(400).json({ message: 'Session date is required' });
+        club.nextSession = {
+            date: new Date(date),
+            location: location || '',
+            description: description || '',
+            rsvps: []
+        };
+        await club.save();
+        res.json({ message: 'Next session set', nextSession: club.nextSession });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Toggle RSVP for next session
+const toggleClubRsvp = async (req, res) => {
+    try {
+        const club = await Club.findById(req.params.id);
+        if (!club) return res.status(404).json({ message: 'Club not found' });
+        
+        // Ensure user is a member, admin, or creator
+        const userId = req.user._id.toString();
+        const ClubRequest = require('../models/ClubRequest');
+        const isMember = club.members && club.members.map(m => m.toString()).includes(userId);
+        const isAdmin = req.user.role === 'admin';
+        const isCreator = club.createdBy && club.createdBy.toString() === userId;
+        
+        // Also allow if user has a pending request
+        const hasPendingRequest = await ClubRequest.findOne({ club: club._id, user: userId, status: 'pending' });
+
+        if (!isMember && !isAdmin && !isCreator && !hasPendingRequest) {
+            return res.status(403).json({ message: 'Only club members or applicants can RSVP for meetings' });
+        }
+
+        if (!club.nextSession || !club.nextSession.date) return res.status(400).json({ message: 'No upcoming session scheduled' });
+
+        const { status } = req.body;
+        if (!['going', 'not_going'].includes(status)) return res.status(400).json({ message: 'Status must be going or not_going' });
+
+        const existing = club.nextSession.rsvps.find(r => r.user && r.user.toString() === userId);
+        if (existing) {
+            existing.status = status;
+        } else {
+            club.nextSession.rsvps.push({ user: req.user._id, status });
+        }
+        await club.save();
+        
+        const going = club.nextSession.rsvps.filter(r => r.status === 'going').length;
+        const notGoing = club.nextSession.rsvps.filter(r => r.status === 'not_going').length;
+        res.json({ message: `RSVP updated to ${status}`, going, notGoing, myStatus: status });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
 module.exports = {
     createClub,
     getClubs,
@@ -586,10 +671,11 @@ module.exports = {
     cancelRequest,
     getAllRequests,
     removeMember,
-    // admin helper
     activateMember,
     activateClub,
     getAllMembers,
     getAllClubs,
     bulkUpdateClubs,
+    setNextSession,
+    toggleClubRsvp,
 };

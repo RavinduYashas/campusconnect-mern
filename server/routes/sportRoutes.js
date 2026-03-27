@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createSport, getSports, getSport, updateSport, deleteSport, joinSport, requestToJoin, getRequests, approveRequest, rejectRequest, removeMember, activateMember, getAllSports, activateSport, getAllMembers, bulkUpdateSports, bulkAddMembers } = require('../controllers/sportController');
+const { createSport, getSports, getSport, updateSport, deleteSport, joinSport, requestToJoin, getRequests, approveRequest, rejectRequest, removeMember, activateMember, getAllSports, activateSport, getAllMembers, bulkUpdateSports, bulkAddMembers, setNextSession, toggleRsvp } = require('../controllers/sportController');
 const { protect } = require('../middleware/authMiddleware');
 const { roleAuthorize } = require('../middleware/roleMiddleware');
 
@@ -26,5 +26,7 @@ router.delete('/:id/members/:memberId', protect, removeMember);
 router.post('/:id/members/:memberId/activate', protect, activateMember);
 router.post('/:id/activate', protect, activateSport);
 router.post('/:id/bulk-members', protect, roleAuthorize('admin'), bulkAddMembers);
+router.post('/:id/next-session', protect, setNextSession);
+router.post('/:id/rsvp', protect, toggleRsvp);
 
 module.exports = router;

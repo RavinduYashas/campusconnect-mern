@@ -43,6 +43,15 @@ const clubSchema = mongoose.Schema(
         isActive: {
             type: Boolean,
             default: true,
+        },
+        nextSession: {
+            date: { type: Date },
+            location: { type: String, default: '' },
+            description: { type: String, default: '' },
+            rsvps: [{
+                user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+                status: { type: String, enum: ['going', 'not_going'], default: 'going' }
+            }]
         }
     },
     {
