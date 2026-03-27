@@ -207,6 +207,16 @@ const getRequests = async (req, res) => {
     }
 };
 
+// User: get my own requests
+const getMyRequests = async (req, res) => {
+    try {
+        const requests = await SportRequest.find({ user: req.user._id });
+        res.json(requests);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
 // Approve a request (admin/creator)
 const approveRequest = async (req, res) => {
     try {
@@ -538,4 +548,4 @@ const toggleRsvp = async (req, res) => {
     }
 };
 
-module.exports = { createSport, getSports, getSport, updateSport, deleteSport, joinSport, requestToJoin, getRequests, approveRequest, rejectRequest, removeMember, activateMember, getAllSports, activateSport, getAllMembers, bulkUpdateSports, bulkAddMembers, setNextSession, toggleRsvp };
+module.exports = { createSport, getSports, getSport, updateSport, deleteSport, joinSport, requestToJoin, getRequests, getMyRequests, approveRequest, rejectRequest, removeMember, activateMember, getAllSports, activateSport, getAllMembers, bulkUpdateSports, bulkAddMembers, setNextSession, toggleRsvp };

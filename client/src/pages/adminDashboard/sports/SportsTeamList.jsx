@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useToast } from '../../../context/ToastContext';
 import SportsTeamForm from './SportsTeamForm';
 
 const SportsTeamList = () => {
+   const { showToast } = useToast();
+const askConfirm = async (message) => window.confirm(message);
     const [teams, setTeams] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState(null);
@@ -180,9 +183,9 @@ const SportsTeamList = () => {
         try {
             const res = await fetch(`/api/sports/${sportId}/requests/${reqId}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
             if (!res.ok) throw new Error('Approve failed');
-            alert('Approved');
+            showToast('Approved', 'success');
             loadTeams();
-        } catch (e) { alert(e.message); }
+        } catch (e) { showToast(e.message, 'error'); }
     };
 
     const handleGlobalReject = async (sportId, reqId) => {
@@ -190,9 +193,9 @@ const SportsTeamList = () => {
         try {
             const res = await fetch(`/api/sports/${sportId}/requests/${reqId}/reject`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
             if (!res.ok) throw new Error('Reject failed');
-            alert('Rejected');
+            showToast('Rejected', 'success');
             loadTeams();
-        } catch (e) { alert(e.message); }
+        } catch (e) { showToast(e.message, 'error'); }
     };
 
     const handleCreate = () => { setEditing(null); setShowForm(true); };
@@ -212,9 +215,9 @@ const SportsTeamList = () => {
             const id = team._id || team.id;
             const res = await fetch(`/api/sports/${id}`, { method: 'PUT', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ isActive: false }) });
             if (!res.ok) throw new Error('Failed');
-            alert('Deactivated');
+            showToast('Deactivated', 'success');
             loadTeams();
-        } catch (err) { alert(err.message || 'Failed'); }
+        } catch (err) { showToast(err.message || 'Failed', 'error'); }
     };
 
     const openManage = async (team) => {
@@ -247,9 +250,9 @@ const SportsTeamList = () => {
             const res = await fetch(`/api/sports/${id}/members/${memberId}/activate`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Activate failed');
-            alert(body.message || 'Activated');
+            showToast(body.message || 'Activated', 'success');
             openManage(managing);
-        } catch (err) { alert(err.message || 'Activate failed'); }
+        } catch (err) { showToast(err.message || 'Activate failed', 'error'); }
     };
 
     const activateTeam = async (team) => {
@@ -260,9 +263,9 @@ const SportsTeamList = () => {
             const res = await fetch(`/api/sports/${id}/activate`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Activate failed');
-            alert(body.message || 'Team activated');
+            showToast(body.message || 'Team activated', 'success');
             loadTeams();
-        } catch (err) { alert(err.message || 'Activate failed'); }
+        } catch (err) { showToast(err.message || 'Activate failed', 'error'); }
     };
 
     const approve = async (reqId) => {
@@ -272,9 +275,9 @@ const SportsTeamList = () => {
             const res = await fetch(`/api/sports/${id}/requests/${reqId}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Approve failed');
-            alert(body.message || 'Approved');
+            showToast(body.message || 'Approved', 'success');
             openManage(managing);
-        } catch (err) { alert(err.message || 'Approve failed'); }
+        } catch (err) { showToast(err.message || 'Approve failed', 'error'); }
     };
 
     const reject = async (reqId) => {
@@ -284,22 +287,22 @@ const SportsTeamList = () => {
             const res = await fetch(`/api/sports/${id}/requests/${reqId}/reject`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Reject failed');
-            alert(body.message || 'Rejected');
+            showToast(body.message || 'Rejected', 'success');
             openManage(managing);
-        } catch (err) { alert(err.message || 'Reject failed'); }
+        } catch (err) { showToast(err.message || 'Reject failed', 'error'); }
     };
 
     const removeMember = async (memberId) => {
-        if (!confirm('Remove this member?')) return;
+        if (!(await askConfirm('Are you sure you want to remove this member from the team?'))) return;
         const id = managing._id || managing.id;
         const token = localStorage.getItem('token');
         try {
             const res = await fetch(`/api/sports/${id}/members/${memberId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Remove failed');
-            alert(body.message || 'Removed');
+            showToast(body.message || 'Removed', 'success');
             openManage(managing);
-        } catch (err) { alert(err.message || 'Remove failed'); }
+        } catch (err) { showToast(err.message || 'Remove failed', 'error'); }
     };
 
     const handleBulkAction = async (action) => {
@@ -311,11 +314,11 @@ const SportsTeamList = () => {
             const res = await fetch('/api/sports/bulk', { method: 'POST', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ ids: selectedIds, action }) });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Bulk failed');
-            alert(body.message || 'Bulk completed');
+            showToast(body.message || 'Bulk completed', 'success');
             setSelectedIds([]);
             loadTeams();
         } catch (err) {
-            alert(err.message || 'Bulk failed');
+            showToast(err.message || 'Bulk failed', 'error');
         } finally { setBulkLoading(false); }
     };
 
@@ -339,22 +342,22 @@ const SportsTeamList = () => {
     };
 
     const handleImportCsv = async () => {
-        if (!managing) return alert('Open a team to import members into');
-        if (!csvFile) return alert('Select a CSV file');
+        if (!managing) return showToast('Open a team to import members into', 'warning');
+        if (!csvFile) return showToast('Select a CSV file', 'warning');
         const reader = new FileReader();
         reader.onload = async (e) => {
             const txt = e.target.result;
             const members = parseCsvText(txt);
-            if (!members.length) return alert('No emails found in CSV');
+            if (!members.length) return showToast('No emails found in CSV', 'error');
             const token = localStorage.getItem('token');
             try {
                 const res = await fetch(`/api/sports/${managing._id || managing.id}/bulk-members`, { method: 'POST', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ members }) });
                 const body = await res.json();
                 if (!res.ok) throw new Error(body.message || 'Import failed');
-                alert('Import completed: ' + JSON.stringify(body.report || body));
+                showToast('Import completed', 'success');
                 openManage(managing);
             } catch (err) {
-                alert(err.message || 'Import failed');
+                showToast(err.message || 'Import failed', 'error');
             }
         };
         reader.readAsText(csvFile);

@@ -20,9 +20,14 @@ import AllMembers from './pages/adminDashboard/AllMembers';
 import AdminLayout from './components/admin/AdminLayout';
 import ClientLayout from './components/ClientLayout';
 
+import { ToastProvider } from './context/ToastContext';
+import { ConfirmProvider } from './context/ConfirmContext';
+
 function App() {
   return (
-    <Router>
+    <ToastProvider>
+      <ConfirmProvider>
+        <Router>
       <Routes>
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminLayout />}>
@@ -53,7 +58,9 @@ function App() {
           <Route path="/sports" element={<Sports />} />
         </Route>
       </Routes>
-    </Router>
+      </Router>
+      </ConfirmProvider>
+    </ToastProvider>
   );
 }
 

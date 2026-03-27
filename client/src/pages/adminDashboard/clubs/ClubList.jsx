@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useToast } from '../../../context/ToastContext';
 import ClubForm from './ClubForm';
 
 const ClubList = () => {
+    const { showToast } = useToast();
+const askConfirm = async (message) => window.confirm(message);
     const [clubs, setClubs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState(null);
@@ -133,9 +136,29 @@ const ClubList = () => {
             const id = club._id || club.id;
             const res = await fetch(`/api/clubs/${id}`, { method: 'PUT', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ isActive: false }) });
             if (!res.ok) throw new Error('Failed');
-            alert('Deactivated');
+            showToast('Deactivated', 'success');
             loadClubs();
-        } catch (err) { alert(err.message || 'Failed'); }
+        } catch (err) { showToast(err.message || 'Failed', 'error'); }
+    };
+
+    const handleGlobalApprove = async (clubId, reqId) => {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`/api/clubs/${clubId}/requests/${reqId}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) throw new Error('Approve failed');
+            showToast('Approved', 'success');
+            loadClubs();
+        } catch (e) { showToast(e.message, 'error'); }
+    };
+
+    const handleGlobalReject = async (clubId, reqId) => {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`/api/clubs/${clubId}/requests/${reqId}/reject`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) throw new Error('Reject failed');
+            showToast('Rejected', 'success');
+            loadClubs();
+        } catch (e) { showToast(e.message, 'error'); }
     };
 
     const loadAllMembers = async () => {
@@ -209,11 +232,9 @@ const ClubList = () => {
             const res = await fetch(`/api/clubs/${id}/activate`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Activate failed');
-            alert(body.message || 'Club activated');
+            showToast(body.message || 'Club activated', 'success');
             loadClubs();
-        } catch (err) {
-            alert(err.message || 'Activate failed');
-        }
+        } catch (err) { showToast(err.message || 'Activate failed', 'error'); }
     };
 
     const approve = async (reqId) => {
@@ -223,9 +244,9 @@ const ClubList = () => {
             const res = await fetch(`/api/clubs/${id}/requests/${reqId}/approve`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Approve failed');
-            alert(body.message || 'Approved');
+            showToast(body.message || 'Approved', 'success');
             openManage(managing);
-        } catch (err) { alert(err.message || 'Approve failed'); }
+        } catch (err) { showToast(err.message || 'Approve failed', 'error'); }
     };
 
     const reject = async (reqId) => {
@@ -235,22 +256,22 @@ const ClubList = () => {
             const res = await fetch(`/api/clubs/${id}/requests/${reqId}/reject`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Reject failed');
-            alert(body.message || 'Rejected');
+            showToast(body.message || 'Rejected', 'success');
             openManage(managing);
-        } catch (err) { alert(err.message || 'Reject failed'); }
+        } catch (err) { showToast(err.message || 'Reject failed', 'error'); }
     };
 
     const removeMember = async (memberId) => {
-        if (!confirm('Remove this member?')) return;
+        if (!(await askConfirm('Are you sure you want to remove this member from the club?'))) return;
         const id = managing._id || managing.id;
         const token = localStorage.getItem('token');
         try {
             const res = await fetch(`/api/clubs/${id}/members/${memberId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Remove failed');
-            alert(body.message || 'Removed');
+            showToast(body.message || 'Removed', 'success');
             openManage(managing);
-        } catch (err) { alert(err.message || 'Remove failed'); }
+        } catch (err) { showToast(err.message || 'Remove failed', 'error'); }
     };
 
     const activateMember = async (memberId) => {
@@ -261,9 +282,9 @@ const ClubList = () => {
             const res = await fetch(`/api/clubs/${id}/members/${memberId}/activate`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
             const body = await res.json();
             if (!res.ok) throw new Error(body.message || 'Activate failed');
-            alert(body.message || 'Activated');
+            showToast(body.message || 'Activated', 'success');
             openManage(managing);
-        } catch (err) { alert(err.message || 'Activate failed'); }
+        } catch (err) { showToast(err.message || 'Activate failed', 'error'); }
     };
 
     const handleBulkAction = async (action) => {
@@ -274,12 +295,12 @@ const ClubList = () => {
             const token = localStorage.getItem('token');
             const res = await fetch('/api/clubs/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ ids: selectedIds, action }) });
             const body = await res.json();
-            if (!res.ok) throw new Error(body.message || 'Bulk action failed');
-            alert(body.message || 'Bulk action completed');
+            if (!res.ok) throw new Error(body.message || 'Bulk failed');
+            showToast(body.message || 'Bulk completed', 'success');
             setSelectedIds([]);
             loadClubs();
         } catch (err) {
-            alert(err.message || 'Bulk action failed');
+            showToast(err.message || 'Bulk failed', 'error');
         } finally {
             setBulkLoading(false);
         }
