@@ -1,6 +1,6 @@
-const Sport = require('../models/Sport');
-const SportRequest = require('../models/SportRequest');
-const User = require('../models/User');
+const Sport = require('../../models/SportsandClubs/Sport');
+const SportRequest = require('../../models/SportsandClubs/SportRequest');
+const User = require('../../models/User');
 
 // Create sport/team
 const createSport = async (req, res) => {
@@ -506,7 +506,6 @@ const toggleRsvp = async (req, res) => {
         
         // Ensure user is a member, admin, or creator
         const userId = req.user._id.toString();
-        const SportRequest = require('../models/SportRequest');
         const isMember = sport.members && sport.members.map(m => m.toString()).includes(userId);
         const isAdmin = req.user.role === 'admin';
         const isCreator = sport.createdBy && sport.createdBy.toString() === userId;

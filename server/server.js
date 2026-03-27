@@ -74,8 +74,8 @@ connectDB().then(() => {
 
     // Routes
     app.use('/api/users', require('./routes/userRoutes'));
-    app.use('/api/sports', require('./routes/sportRoutes'));
-    app.use('/api/clubs', require('./routes/clubRoutes'));
+    app.use('/api/sports', require('./routes/SportsandClubs/sportRoutes'));
+    app.use('/api/clubs', require('./routes/SportsandClubs/clubRoutes'));
     app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
     app.use('/api/qa', require('./routes/QA/qaRoutes'));
 
