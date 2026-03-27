@@ -21,7 +21,10 @@ const ClubForm = ({ club = null, onSaved, onCancel }) => {
             name: club?.name || '',
             description: club?.description || '',
             coach: club?.coach || '',
-            maxMembers: club?.maxMembers || ''
+            maxMembers: club?.maxMembers || '',
+            sessionDate: club?.nextSession?.date ? new Date(club.nextSession.date).toISOString().slice(0, 16) : '',
+            sessionLocation: club?.nextSession?.location || '',
+            sessionDescription: club?.nextSession?.description || ''
         },
         validationSchema,
         onSubmit: async (values) => {
@@ -30,6 +33,13 @@ const ClubForm = ({ club = null, onSaved, onCancel }) => {
             try {
                 const payload = { name: values.name, description: values.description, coach: values.coach };
                 if (values.maxMembers !== null && values.maxMembers !== '') payload.maxMembers = Number(values.maxMembers);
+                if (values.sessionDate) {
+                    payload.nextSession = {
+                        date: values.sessionDate,
+                        location: values.sessionLocation || '',
+                        description: values.sessionDescription || ''
+                    };
+                }
                 let res;
                 if (club && (club._id || club.id)) {
                     const id = club._id || club.id;
@@ -81,6 +91,24 @@ const ClubForm = ({ club = null, onSaved, onCancel }) => {
                 <div>
                     <label className="block text-sm font-medium">Description</label>
                     <textarea name="description" value={formik.values.description} onChange={formik.handleChange} onBlur={formik.handleBlur} className="mt-1 block w-full border rounded-md p-2" rows={4} />
+                </div>
+
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                    <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">📅 Next Meeting Session <span className="text-xs font-normal text-gray-500">(optional)</span></h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Date & Time</label>
+                            <input name="sessionDate" type="datetime-local" value={formik.values.sessionDate} onChange={formik.handleChange} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Location</label>
+                            <input name="sessionLocation" value={formik.values.sessionLocation} onChange={formik.handleChange} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" placeholder="e.g. Room 204" />
+                        </div>
+                    </div>
+                    <div className="mt-3">
+                        <label className="block text-sm font-medium text-gray-700">Session Description</label>
+                        <input name="sessionDescription" value={formik.values.sessionDescription} onChange={formik.handleChange} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" placeholder="e.g. Weekly brainstorming session" />
+                    </div>
                 </div>
 
                 <div className="flex gap-2 justify-end">

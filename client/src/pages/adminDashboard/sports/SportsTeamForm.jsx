@@ -25,7 +25,10 @@ const SportsTeamForm = ({ team = null, onSaved, onCancel }) => {
             sportType: team?.sportType || '',
             description: team?.description || '',
             coach: team?.coach || '',
-            maxMembers: team?.maxMembers || ''
+            maxMembers: team?.maxMembers || '',
+            sessionDate: team?.nextSession?.date ? new Date(team.nextSession.date).toISOString().slice(0, 16) : '',
+            sessionLocation: team?.nextSession?.location || '',
+            sessionDescription: team?.nextSession?.description || ''
         },
         validationSchema,
         onSubmit: async (values) => {
@@ -34,6 +37,13 @@ const SportsTeamForm = ({ team = null, onSaved, onCancel }) => {
             try {
                 const payload = { name: values.name, sportType: values.sportType, description: values.description, coach: values.coach };
                 if (values.maxMembers !== null && values.maxMembers !== '') payload.maxMembers = Number(values.maxMembers);
+                if (values.sessionDate) {
+                    payload.nextSession = {
+                        date: values.sessionDate,
+                        location: values.sessionLocation || '',
+                        description: values.sessionDescription || ''
+                    };
+                }
                 let res;
                 if (team && (team._id || team.id)) {
                     const id = team._id || team.id;
@@ -104,6 +114,24 @@ const SportsTeamForm = ({ team = null, onSaved, onCancel }) => {
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Description</label>
                     <textarea name="description" value={formik.values.description} onChange={formik.handleChange} onBlur={formik.handleBlur} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" rows={4} placeholder="Enter team description..." />
+                </div>
+
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                    <h3 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">📅 Next Training Session <span className="text-xs font-normal text-gray-500">(optional)</span></h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Date & Time</label>
+                            <input name="sessionDate" type="datetime-local" value={formik.values.sessionDate} onChange={formik.handleChange} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Location</label>
+                            <input name="sessionLocation" value={formik.values.sessionLocation} onChange={formik.handleChange} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" placeholder="e.g. Indoor Court A" />
+                        </div>
+                    </div>
+                    <div className="mt-3">
+                        <label className="block text-sm font-medium text-gray-700">Session Description</label>
+                        <input name="sessionDescription" value={formik.values.sessionDescription} onChange={formik.handleChange} className="mt-1 block w-full border border-gray-300 rounded-lg p-2.5 focus:ring-[#1E3A8A] focus:border-[#1E3A8A]" placeholder="e.g. Weekly practice match" />
+                    </div>
                 </div>
 
                 <div className="flex gap-2 justify-end">

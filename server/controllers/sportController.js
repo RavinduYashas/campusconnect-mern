@@ -14,7 +14,25 @@ const createSport = async (req, res) => {
             mm = parseInt(maxMembers, 10);
             if (isNaN(mm) || mm < 1) return res.status(400).json({ message: 'maxMembers must be a positive integer' });
         }
-        const sport = await Sport.create({ name, sportType: sportType || 'General', description, coach, maxMembers: mm, createdBy: req.user ? req.user._id : undefined });
+        const payload = { 
+            name, 
+            sportType: sportType || 'General', 
+            description, 
+            coach, 
+            maxMembers: mm, 
+            createdBy: req.user ? req.user._id : undefined 
+        };
+
+        if (req.body.nextSession && req.body.nextSession.date) {
+            payload.nextSession = {
+                date: new Date(req.body.nextSession.date),
+                location: req.body.nextSession.location || '',
+                description: req.body.nextSession.description || '',
+                rsvps: []
+            };
+        }
+
+        const sport = await Sport.create(payload);
         res.status(201).json(sport);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -74,6 +92,17 @@ const updateSport = async (req, res) => {
             }
         }
         if (typeof req.body.isActive === 'boolean') sport.isActive = req.body.isActive;
+
+        // Handle nextSession update
+        if (req.body.nextSession) {
+            sport.nextSession = {
+                date: req.body.nextSession.date ? new Date(req.body.nextSession.date) : sport.nextSession?.date,
+                location: typeof req.body.nextSession.location !== 'undefined' ? req.body.nextSession.location : (sport.nextSession?.location || ''),
+                description: typeof req.body.nextSession.description !== 'undefined' ? req.body.nextSession.description : (sport.nextSession?.description || ''),
+                rsvps: sport.nextSession?.rsvps || []
+            };
+        }
+
         const updated = await sport.save();
 
         // If space available after update, promote from waitlist
@@ -446,4 +475,68 @@ const bulkAddMembers = async (req, res) => {
     }
 };
 
-module.exports = { createSport, getSports, getSport, updateSport, deleteSport, joinSport, requestToJoin, getRequests, approveRequest, rejectRequest, removeMember, activateMember, getAllSports, activateSport, getAllMembers, bulkUpdateSports, bulkAddMembers };
+// Set next session for a sport/team
+const setNextSession = async (req, res) => {
+    try {
+        const sport = await Sport.findById(req.params.id);
+        if (!sport) return res.status(404).json({ message: 'Not found' });
+        if (req.user.role !== 'admin' && (!sport.createdBy || sport.createdBy.toString() !== req.user._id.toString())) {
+            return res.status(403).json({ message: 'Not authorized' });
+        }
+        const { date, location, description } = req.body;
+        if (!date) return res.status(400).json({ message: 'Session date is required' });
+        sport.nextSession = {
+            date: new Date(date),
+            location: location || '',
+            description: description || '',
+            rsvps: []
+        };
+        await sport.save();
+        res.json({ message: 'Next session set', nextSession: sport.nextSession });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+// Toggle RSVP for next session
+const toggleRsvp = async (req, res) => {
+    try {
+        const sport = await Sport.findById(req.params.id);
+        if (!sport) return res.status(404).json({ message: 'Not found' });
+        
+        // Ensure user is a member, admin, or creator
+        const userId = req.user._id.toString();
+        const SportRequest = require('../models/SportRequest');
+        const isMember = sport.members && sport.members.map(m => m.toString()).includes(userId);
+        const isAdmin = req.user.role === 'admin';
+        const isCreator = sport.createdBy && sport.createdBy.toString() === userId;
+        
+        // Also allow if user has a pending request
+        const hasPendingRequest = await SportRequest.findOne({ sport: sport._id, user: userId, status: 'pending' });
+
+        if (!isMember && !isAdmin && !isCreator && !hasPendingRequest) {
+            return res.status(403).json({ message: 'Only team members or applicants can RSVP for sessions' });
+        }
+
+        if (!sport.nextSession || !sport.nextSession.date) return res.status(400).json({ message: 'No upcoming session scheduled' });
+
+        const { status } = req.body; // 'going' or 'not_going'
+        if (!['going', 'not_going'].includes(status)) return res.status(400).json({ message: 'Status must be going or not_going' });
+
+        const existing = sport.nextSession.rsvps.find(r => r.user && r.user.toString() === userId);
+        if (existing) {
+            existing.status = status;
+        } else {
+            sport.nextSession.rsvps.push({ user: req.user._id, status });
+        }
+        await sport.save();
+        
+        const going = sport.nextSession.rsvps.filter(r => r.status === 'going').length;
+        const notGoing = sport.nextSession.rsvps.filter(r => r.status === 'not_going').length;
+        res.json({ message: `RSVP updated to ${status}`, going, notGoing, myStatus: status });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
+module.exports = { createSport, getSports, getSport, updateSport, deleteSport, joinSport, requestToJoin, getRequests, approveRequest, rejectRequest, removeMember, activateMember, getAllSports, activateSport, getAllMembers, bulkUpdateSports, bulkAddMembers, setNextSession, toggleRsvp };
