@@ -1,9 +1,9 @@
-// pages/StudyGroups/StudyGroupDetails.jsx
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
+import MainStudyBuddyWidget from '../../components/StudyGroups/MainStudyBuddyWidget';
 
 const StudyGroupDetails = () => {
   const { id } = useParams();
@@ -421,7 +421,7 @@ const StudyGroupDetails = () => {
     );
   }
 
-  // Main render - removed the key from the div
+  // Main render
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header Section */}
@@ -430,18 +430,28 @@ const StudyGroupDetails = () => {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mb-8"
       >
-        <div className="bg-gradient-to-r from-primary to-primary-dark p-6 text-white">
+        {/* Gradient Header with Visible Badges */}
+        <div className="bg-gradient-to-r from-primary to-primary-dark p-6">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-2">{group.name}</h1>
+              <h1 className="text-3xl md:text-4xl font-bold mb-2 text-white">{group.name}</h1>
               <div className="flex flex-wrap gap-2">
-                <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
+                {/* Group Type Badge - Now visible with colored background */}
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  group.type === 'open' 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-yellow-100 text-yellow-700'
+                }`}>
                   {group.type === 'open' ? '🔓 Open Group' : '🔒 Private Group'}
                 </span>
-                <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
+                
+                {/* Faculty Badge */}
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                   📚 {group.faculty}
                 </span>
-                <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-sm">
+                
+                {/* Academic Year Badge */}
+                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
                   📅 {group.academicYear}
                 </span>
               </div>
@@ -495,6 +505,9 @@ const StudyGroupDetails = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Study Buddy Assistant */}
+      <MainStudyBuddyWidget groupId={group._id} />
 
       {/* Tabs */}
       <div className="flex gap-4 border-b border-gray-200 mb-6 overflow-x-auto">

@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
@@ -86,6 +85,7 @@ app.use('/api/qa', require('./routes/QA/qaRoutes'));
 app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
 app.use('/api/study-groups', require('./routes/StudyGroups/StudyGroups'));
 app.use('/api/workshops', require('./routes/Workshops/Workshops'));
+app.use('/api/study-buddy', require('./routes/StudyGroups/StudyBuddyRoutes'));
 
 // ========== DEBUG ROUTES ==========
 app.get('/api/test', (req, res) => {
