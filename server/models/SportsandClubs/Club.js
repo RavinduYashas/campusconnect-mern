@@ -10,6 +10,14 @@ const clubSchema = mongoose.Schema(
             type: String,
             default: '',
         },
+        coach: {
+            type: String,
+            default: '',
+        },
+        maxMembers: {
+            type: Number,
+            min: 1,
+        },
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
@@ -26,9 +34,24 @@ const clubSchema = mongoose.Schema(
                 ref: 'User',
             }
         ],
+        waitlist: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',
+            }
+        ],
         isActive: {
             type: Boolean,
             default: true,
+        },
+        nextSession: {
+            date: { type: Date },
+            location: { type: String, default: '' },
+            description: { type: String, default: '' },
+            rsvps: [{
+                user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+                status: { type: String, enum: ['going', 'not_going'], default: 'going' }
+            }]
         }
     },
     {

@@ -1,22 +1,13 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 const connectDB = require('./config/db');
 const createAdmin = require('./config/createAdmin');
 const seedGroups = require('./config/seedGroups');
 
 dotenv.config();
-
-// Connect to Database
-connectDB().then(() => {
-    // Create Default Admin
-    createAdmin();
-    // Seed Q&A Groups
-    seedGroups();
-});
-
-const http = require('http');
-const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
@@ -42,7 +33,6 @@ io.on('connection', (socket) => {
             io.emit('online_users', Array.from(userSockets.keys()));
         }
     });
-
     socket.on('disconnect', () => {
         for (let [userId, socketId] of userSockets.entries()) {
             if (socketId === socket.id) {
@@ -53,9 +43,6 @@ io.on('connection', (socket) => {
             }
         }
     });
-});
-
-io.on('connection', (socket) => {
     socket.emit('online_users', Array.from(userSockets.keys()));
 });
 
@@ -137,3 +124,30 @@ listRoutes();
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Connect to Database and start server
+connectDB().then(() => {
+    console.log('Database connected, initializing services...');
+    
+    // Create Default Admin & Seed Data
+    createAdmin();
+    seedGroups();
+
+    // Routes
+    app.use('/api/users', require('./routes/userRoutes'));
+    app.use('/api/sports', require('./routes/SportsandClubs/sportRoutes'));
+    app.use('/api/clubs', require('./routes/SportsandClubs/clubRoutes'));
+    app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
+    app.use('/api/qa', require('./routes/QA/qaRoutes'));
+
+    // Catch-all for unknown /api routes
+    app.use('/api', (req, res) => {
+        res.status(404).json({ message: `API route not found: ${req.method} ${req.originalUrl}` });
+    });
+
+    // Server listening
+    const PORT = process.env.PORT || 5000;
+    server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}).catch(err => {
+    console.error('Failed to connect to MongoDB:', err.message);
+    process.exit(1);
+});

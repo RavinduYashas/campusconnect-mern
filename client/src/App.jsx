@@ -19,6 +19,7 @@ import SkillList from './pages/adminDashboard/skillsEvents/SkillList';
 import StudyGroupList from './pages/adminDashboard/studyGroupsWorkshops/StudyGroupList';
 import ClubList from './pages/adminDashboard/clubs/ClubList';
 import SportsTeamList from './pages/adminDashboard/sports/SportsTeamList';
+import AllMembers from './pages/adminDashboard/AllMembers';
 import AdminLayout from './components/admin/AdminLayout';
 import ClientLayout from './components/ClientLayout';
 import BatchRepManagement from './pages/adminDashboard/BatchRepManagement';
@@ -41,6 +42,7 @@ function App() {
           <Route path="study-groups" element={<StudyGroupList />} />
           <Route path="clubs" element={<ClubList />} />
           <Route path="sports" element={<SportsTeamList />} />
+          <Route path="all-members" element={<AllMembers />} />
           <Route path="users" element={<ManageUsers />} />
           <Route path="moderation" element={<div className="text-center py-20 text-text-secondary">Moderation Module Coming Soon</div>} />
           <Route path="settings" element={<div className="text-center py-20 text-text-secondary">System Settings Coming Soon</div>} />
