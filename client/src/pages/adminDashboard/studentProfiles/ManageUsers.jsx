@@ -6,6 +6,7 @@ import AddUserModal from './AddUserModal';
 import EditUserModal from './EditUserModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import ConfirmModal from '../../../components/ConfirmModal';
 
 const ManageUsers = () => {
     const navigate = useNavigate();
@@ -18,6 +19,13 @@ const ManageUsers = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [confirmModal, setConfirmModal] = useState({
+        show: false,
+        title: '',
+        message: '',
+        type: 'delete',
+        id: null
+    });
 
     const tabs = [
         { id: 'admin', label: 'Admins' },
@@ -48,17 +56,27 @@ const ManageUsers = () => {
         fetchUsers();
     }, [currentUser, navigate]);
 
-    const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this user?')) {
-            try {
-                const token = localStorage.getItem('token');
-                await axios.delete(`/api/users/${id}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setUsers(users.filter(user => user._id !== id));
-            } catch (err) {
-                alert(err.response?.data?.message || 'Failed to delete user');
-            }
+    const handleDelete = (id) => {
+        setConfirmModal({
+            show: true,
+            title: 'Delete User',
+            message: 'Are you sure you want to delete this user? This action cannot be undone.',
+            type: 'delete',
+            id
+        });
+    };
+
+    const executeDelete = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`/api/users/${confirmModal.id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setUsers(users.filter(user => user._id !== confirmModal.id));
+            setConfirmModal({ ...confirmModal, show: false });
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to delete user');
+            setConfirmModal({ ...confirmModal, show: false });
         }
     };
 
@@ -76,8 +94,25 @@ const ManageUsers = () => {
         setUsers(users.map(user => user._id === updatedUser._id ? { ...user, ...updatedUser } : user));
     };
 
+    const handleToggleRep = async (user) => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.put(`/api/users/toggle-rep/${user._id}`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setUsers(users.map(u => u._id === user._id ? { ...u, isBatchRep: res.data.isBatchRep } : u));
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to update representative status');
+        }
+    };
+
     const handleExportPDF = () => {
-        const doc = new jsPDF();
+        // Use landscape for better table fit
+        const doc = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
+        });
         const pageWidth = doc.internal.pageSize.width;
 
         // --- 1. Header Section ---
@@ -85,46 +120,47 @@ const ManageUsers = () => {
         doc.rect(0, 0, pageWidth, 40, 'F');
 
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(24);
+        doc.setFontSize(26);
         doc.setFont('helvetica', 'bold');
         doc.text("CampusConnect", 14, 25);
 
-        doc.setFontSize(10);
+        doc.setFontSize(12);
         doc.setFont('helvetica', 'normal');
-        doc.text("Official Platform Management Report", 14, 32);
+        doc.text("Official Platform Management Report", 14, 33);
 
-        doc.setTextColor(255, 255, 255);
-        doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, pageWidth - 70, 25);
+        doc.setFontSize(10);
+        doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, pageWidth - 80, 25);
 
         // --- 2. Report Details ---
         doc.setTextColor(100, 116, 139); // Gray-500
-        doc.setFontSize(14);
+        doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
         doc.text(`${activeTab.toUpperCase()} DIRECTORY`, 14, 55);
 
-        doc.setFontSize(10);
+        doc.setFontSize(11);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Total Records: ${filteredUsers.length}`, 14, 62);
+        doc.text(`Total Records: ${filteredUsers.length}`, 14, 63);
 
         if (searchTerm) {
-            doc.text(`Filter Active: "${searchTerm}"`, 14, 67);
+            doc.text(`Filter Active: "${searchTerm}"`, 14, 69);
         }
 
         // --- 3. Table Data ---
-        const tableColumn = ["#", "Full Name", "Login Email", "Personal Email", " Expertise/Field"];
+        const tableColumn = ["#", "Full Name", "Login Email", "Personal Email", "Expertise/Field"];
         if (activeTab === 'student') {
             tableColumn.splice(4, 0, "Year & Sem");
         }
+        
         const tableRows = filteredUsers.map((user, index) => {
             const row = [
                 index + 1,
                 user.name,
                 user.email,
-                user.realEmail || 'N/A'
+                user.realEmail || '—'
             ];
 
             if (activeTab === 'student') {
-                row.push(user.academicInfo ? `Y${user.academicInfo.year}S${user.academicInfo.semester}` : 'N/A');
+                row.push(user.academicInfo ? `Y${user.academicInfo.year}S${user.academicInfo.semester}` : '—');
             }
 
             row.push(user.field || 'General');
@@ -144,20 +180,22 @@ const ManageUsers = () => {
                 halign: 'center'
             },
             columnStyles: {
-                0: { cellWidth: 10, halign: 'center' },
-                1: { cellWidth: 40 },
-                2: { cellWidth: 50 },
-                3: { cellWidth: 50 },
-                4: { cellWidth: 35 }
+                0: { cellWidth: 15, halign: 'center' }, // #
+                1: { cellWidth: 'auto' }, // Full Name
+                2: { cellWidth: 55 }, // Login Email
+                3: { cellWidth: 55 }, // Personal Email
+                4: { cellWidth: activeTab === 'student' ? 30 : 50 }, // Year & Sem or Expertise
+                5: { cellWidth: 50 } // Expertise (if student)
             },
             styles: {
                 fontSize: 9,
-                cellPadding: 4
+                cellPadding: 4,
+                overflow: 'linebreak'
             },
             alternateRowStyles: {
                 fillColor: [248, 250, 252]
             },
-            margin: { top: 75 },
+            margin: { left: 14, right: 14, top: 75 },
             didDrawPage: (data) => {
                 // Footer
                 const str = "Page " + doc.internal.getNumberOfPages();
@@ -319,15 +357,24 @@ const ManageUsers = () => {
                                             </td>
                                         )}
                                         <td className="px-8 py-5">
-                                            <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${user.role === 'admin' ? 'bg-red-50 text-error ring-1 ring-red-100' :
+                                            <span className={`inline-block whitespace-nowrap px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${user.role === 'admin' ? 'bg-red-50 text-error ring-1 ring-red-100' :
                                                 user.role === 'expert' ? 'bg-green-50 text-green-600 ring-1 ring-green-100' :
+                                                    user.isBatchRep ? 'bg-orange-50 text-orange-600 ring-1 ring-orange-100' :
                                                     'bg-primary/5 text-primary ring-1 ring-primary/10'
                                                 }`}>
-                                                {user.role}
+                                                {user.isBatchRep ? 'Batch Rep' : user.role}
                                             </span>
                                         </td>
                                         <td className="px-8 py-5">
-                                            <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity text-sm">
+                                            <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity text-sm items-center">
+                                                {user.role === 'student' && (
+                                                    <button
+                                                        onClick={() => handleToggleRep(user)}
+                                                        className={`whitespace-nowrap ${user.isBatchRep ? 'text-orange-500 hover:text-orange-600' : 'text-blue-500 hover:text-blue-600'} font-bold uppercase tracking-wider transition-colors`}
+                                                    >
+                                                        {user.isBatchRep ? 'Remove Rep' : 'Make Rep'}
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => handleEdit(user)}
                                                     className="text-primary hover:text-primary-dark font-bold uppercase tracking-wider transition-colors"
@@ -380,6 +427,15 @@ const ManageUsers = () => {
                 }}
                 user={selectedUser}
                 onUserUpdated={handleUserUpdated}
+            />
+
+            <ConfirmModal
+                show={confirmModal.show}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                type={confirmModal.type}
+                onConfirm={executeDelete}
+                onCancel={() => setConfirmModal({ ...confirmModal, show: false })}
             />
         </div>
     );

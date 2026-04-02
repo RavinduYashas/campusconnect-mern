@@ -89,7 +89,14 @@ app.use('/api', (req, res) => {
 const listRoutes = () => {
     try {
         const routes = [];
-        app._router.stack.forEach((middleware) => {
+        const router = app._router || app.router;
+        
+        if (!router || !router.stack) {
+            console.log('\n=== NO ROUTES REGISTERED YET ===\n');
+            return;
+        }
+
+        router.stack.forEach((middleware) => {
             if (middleware.route) {
                 const methods = Object.keys(middleware.route.methods).join(',').toUpperCase();
                 routes.push(`${methods} ${middleware.route.path}`);
@@ -114,7 +121,11 @@ const listRoutes = () => {
             }
         });
         console.log('\n=== REGISTERED ROUTES ===');
-        routes.forEach(route => console.log(route));
+        if (routes.length === 0) {
+            console.log('No routes found.');
+        } else {
+            routes.forEach(route => console.log(route));
+        }
         console.log('========================\n');
     } catch (err) {
         console.error('Could not list routes', err);
