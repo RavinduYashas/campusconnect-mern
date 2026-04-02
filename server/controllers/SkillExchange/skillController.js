@@ -81,9 +81,11 @@ exports.deleteSkillRequest = async (req, res) => {
         const request = await SkillRequest.findById(req.params.id);
         if (!request) return res.status(404).json({ message: "Request not found" });
 
-        // Verify ownership
-        if (request.requestedBy.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ message: "Not authorized to delete this request" });
+        // Verify ownership OR Admin Role
+        if (req.user.role !== 'admin') {
+            if (!request.requestedBy || request.requestedBy.toString() !== req.user._id.toString()) {
+                return res.status(403).json({ message: "Not authorized to delete this request" });
+            }
         }
 
         await request.deleteOne();
@@ -216,9 +218,11 @@ exports.deleteSkill = async (req, res) => {
         const skill = await Skill.findById(req.params.id);
         if (!skill) return res.status(404).json({ message: "Skill not found" });
 
-        // Verify ownership
-        if (skill.publishedBy.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ message: "Not authorized to delete this skill" });
+        // Verify ownership OR Admin Role
+        if (req.user.role !== 'admin') {
+            if (!skill.publishedBy || skill.publishedBy.toString() !== req.user._id.toString()) {
+                return res.status(403).json({ message: "Not authorized to delete this skill" });
+            }
         }
 
         await skill.deleteOne();

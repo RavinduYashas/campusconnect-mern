@@ -39,23 +39,38 @@ const SkillDetails = () => {
     const generatePDF = () => {
         if (!skill) return;
         const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.width;
+        const pageHeight = doc.internal.pageSize.height;
         
-        // Header
-        doc.setFontSize(22);
-        doc.setTextColor(33, 150, 243); // primary color matching scheme
-        doc.text("Skill Exchange Profile Overview", 14, 22);
-        
+        // --- 1. Header Section ---
+        doc.setFillColor(37, 99, 235); // Primary Blue
+        doc.rect(0, 0, pageWidth, 40, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text("CampusConnect", 14, 25);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text("Skill Exchange Profile Overview", 14, 32);
+
+        doc.setTextColor(255, 255, 255);
+        doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth - 50, 25);
+
+        // --- 2. Body section ---
         doc.setFontSize(16);
         doc.setTextColor(40, 40, 40);
-        doc.text(`${skill.title}`, 14, 32);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Skill Title: ${skill.title}`, 14, 55);
 
-        // Body section
         doc.setFontSize(12);
         doc.setTextColor(80, 80, 80);
-        doc.text("Expert Information:", 14, 45);
+        doc.setFont('helvetica', 'normal');
+        doc.text("Expert Information:", 14, 65);
         
         autoTable(doc, {
-            startY: 50,
+            startY: 70,
             head: [['Expert Name', 'Role', 'Email', 'Verification']],
             body: [
                 [
@@ -91,13 +106,28 @@ const SkillDetails = () => {
             head: [['Tag Name']],
             body: skill.skillsOffered.map(s => [s]),
             theme: 'striped',
-            headStyles: { fillColor: [6, 182, 212] }
+            headStyles: { fillColor: [6, 182, 212] },
+            margin: { bottom: 30 } // Leave space for footer
         });
 
-        // Footer
-        doc.setFontSize(10);
-        doc.setTextColor(150, 150, 150);
-        doc.text("Downloaded from CampusConnect - Peer Skill Exchange Module", 14, doc.internal.pageSize.height - 10);
+        const numPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= numPages; i++) {
+            doc.setPage(i);
+            
+            // --- 3. Footer Section ---
+            // Footer Line
+            doc.setDrawColor(200, 200, 200);
+            doc.setLineWidth(0.5);
+            doc.line(14, pageHeight - 20, pageWidth - 14, pageHeight - 20);
+
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.setFont('helvetica', 'normal');
+            
+            doc.text("© 2026 CampusConnect Platform - Peer Skill Exchange Module", 14, pageHeight - 12);
+            doc.text(`Page ${i} of ${numPages}`, pageWidth / 2, pageHeight - 12, { align: 'center' });
+            doc.text("Document is strictly confidential", pageWidth - 14, pageHeight - 12, { align: 'right' });
+        }
 
         doc.save(`${skill.title.replace(/\s+/g, '_')}_Details.pdf`);
     };
