@@ -15,7 +15,7 @@ const server = http.createServer(app);
 // Socket.io Setup
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:5173",
+        origin: ["http://localhost:5173", "http://localhost:5174"],
         methods: ["GET", "POST", "PUT", "DELETE"]
     }
 });
@@ -66,13 +66,14 @@ app.get('/', (req, res) => {
 
 // ========== API ROUTES ==========
 app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/clubs', require('./routes/clubRoutes'));
-app.use('/api/sports', require('./routes/sportRoutes'));
+app.use('/api/clubs', require('./routes/SportsandClubs/clubRoutes'));
+app.use('/api/sports', require('./routes/SportsandClubs/sportRoutes'));
 app.use('/api/qa', require('./routes/QA/qaRoutes'));
 app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
 app.use('/api/study-groups', require('./routes/StudyGroups/StudyGroups'));
 app.use('/api/workshops', require('./routes/Workshops/Workshops'));
 app.use('/api/study-buddy', require('./routes/StudyGroups/StudyBuddyRoutes'));
+app.use('/api/skills', require('./routes/SkillExchange/skillRoutes'));
 
 // ========== DEBUG ROUTES ==========
 app.get('/api/test', (req, res) => {
@@ -122,8 +123,6 @@ const listRoutes = () => {
 
 listRoutes();
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 // Connect to Database and start server
 connectDB().then(() => {
     console.log('Database connected, initializing services...');
@@ -132,18 +131,6 @@ connectDB().then(() => {
     createAdmin();
     seedGroups();
 
-    // Routes
-    app.use('/api/users', require('./routes/userRoutes'));
-    app.use('/api/sports', require('./routes/SportsandClubs/sportRoutes'));
-    app.use('/api/clubs', require('./routes/SportsandClubs/clubRoutes'));
-    app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
-    app.use('/api/qa', require('./routes/QA/qaRoutes'));
-
-    // Catch-all for unknown /api routes
-    app.use('/api', (req, res) => {
-        res.status(404).json({ message: `API route not found: ${req.method} ${req.originalUrl}` });
-    });
-
     // Server listening
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
@@ -151,3 +138,4 @@ connectDB().then(() => {
     console.error('Failed to connect to MongoDB:', err.message);
     process.exit(1);
 });
+// Force restart

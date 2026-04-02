@@ -103,4 +103,62 @@ const sendWelcomeEmail = async (email, name, password, role, systemEmail = null)
     }
 };
 
-module.exports = { sendVerificationEmail, sendWelcomeEmail };
+const sendSkillReplyEmail = async (studentEmail, studentName, expertName, messageContent) => {
+    console.log('\n=========================================');
+    console.log('       CAMPUSCONNECT SKILL EXCHANGE      ');
+    console.log(`  To          : ${studentEmail}`);
+    console.log(`  Expert      : ${expertName}`);
+    console.log(`  Message     : ${messageContent}`);
+    console.log('=========================================\n');
+
+    try {
+        const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: process.env.EMAIL,
+                pass: process.env.EMAIL_PASSWORD,
+            },
+        });
+
+        const mailOptions = {
+            from: process.env.EMAIL,
+            to: studentEmail,
+            subject: `Expert ${expertName} replied to your Skill Request!`,
+            html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h2 style="color: #2563eb; margin: 0;">CampusConnect Skill Exchange</h2>
+            <p style="color: #6b7280; font-size: 14px; margin-top: 5px;">Connecting Students and Experts</p>
+          </div>
+          
+          <p>Dear ${studentName},</p>
+          <p>Great news! An expert has responded to your recent skill request.</p>
+          
+          <div style="background-color: #f3f4f6; border-left: 4px solid #2563eb; padding: 15px; margin: 20px 0; border-radius: 4px;">
+            <p style="margin: 0 0 10px 0;"><strong>Expert ${expertName} says:</strong></p>
+            <p style="margin: 0; font-style: italic; color: #374151;">"${messageContent}"</p>
+          </div>
+          
+          <p>Please log in to your CampusConnect dashboard to continue the conversation or view more details.</p>
+          
+          <br/>
+          <p>Best regards,<br/>The CampusConnect Team</p>
+          <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
+          <p style="font-size: 12px; color: #6b7280; text-align: center;">© 2026 CampusConnect. All rights reserved.</p>
+        </div>
+      `,
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log("Skill Reply Email sent:", info.response);
+        return true;
+    } catch (error) {
+        console.log("Skill Reply Email error:", error);
+        if (error.code === 'EAUTH' || error.responseCode === 535) {
+            return true;
+        }
+        return false;
+    }
+};
+
+module.exports = { sendVerificationEmail, sendWelcomeEmail, sendSkillReplyEmail };
