@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const SkillDetails = () => {
     const { id } = useParams();
@@ -32,6 +34,72 @@ const SkillDetails = () => {
     const handleConfirmInterest = () => {
         setEnrolled(true);
         setMessage("Success! You've expressed active interest in this skill. The expert will be notified.");
+    };
+
+    const generatePDF = () => {
+        if (!skill) return;
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFontSize(22);
+        doc.setTextColor(33, 150, 243); // primary color matching scheme
+        doc.text("Skill Exchange Profile Overview", 14, 22);
+        
+        doc.setFontSize(16);
+        doc.setTextColor(40, 40, 40);
+        doc.text(`${skill.title}`, 14, 32);
+
+        // Body section
+        doc.setFontSize(12);
+        doc.setTextColor(80, 80, 80);
+        doc.text("Expert Information:", 14, 45);
+        
+        autoTable(doc, {
+            startY: 50,
+            head: [['Expert Name', 'Role', 'Email', 'Verification']],
+            body: [
+                [
+                    skill.publishedBy?.name || 'N/A', 
+                    (skill.publishedBy?.role || 'N/A').toUpperCase(), 
+                    skill.publishedBy?.email || 'Restricted', 
+                    'Verified Mentor'
+                ]
+            ],
+            theme: 'grid',
+            headStyles: { fillColor: [33, 150, 243] }
+        });
+
+        const finalY = doc.lastAutoTable?.finalY || 65;
+
+        doc.setFontSize(12);
+        doc.setTextColor(80, 80, 80);
+        doc.text("Skill Description:", 14, finalY + 15);
+        doc.setFontSize(11);
+        doc.setTextColor(100, 100, 100);
+        
+        const splitDesc = doc.splitTextToSize(skill.description, 180);
+        doc.text(splitDesc, 14, finalY + 25);
+        
+        const descHeight = doc.getTextDimensions(splitDesc).h;
+
+        doc.setFontSize(12);
+        doc.setTextColor(80, 80, 80);
+        doc.text("Technologies & Topics:", 14, finalY + descHeight + 40);
+        
+        autoTable(doc, {
+            startY: finalY + descHeight + 45,
+            head: [['Tag Name']],
+            body: skill.skillsOffered.map(s => [s]),
+            theme: 'striped',
+            headStyles: { fillColor: [6, 182, 212] }
+        });
+
+        // Footer
+        doc.setFontSize(10);
+        doc.setTextColor(150, 150, 150);
+        doc.text("Downloaded from CampusConnect - Peer Skill Exchange Module", 14, doc.internal.pageSize.height - 10);
+
+        doc.save(`${skill.title.replace(/\s+/g, '_')}_Details.pdf`);
     };
 
     if (loading) return <div className="flex justify-center items-center h-screen font-bold text-primary text-xl">Loading Preview...</div>;
@@ -112,17 +180,24 @@ const SkillDetails = () => {
                                 </div>
                             </div>
 
-                            {!enrolled ? (
-                                <button onClick={handleConfirmInterest} className="w-full md:w-auto self-start bg-gradient-to-r from-primary to-accent text-white px-8 py-4 rounded-2xl font-black text-lg shadow-xl shadow-primary/30 transform hover:-translate-y-1 transition-all flex items-center gap-3">
-                                    Confirm Interest & Enroll
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                            <div className="flex flex-col sm:flex-row gap-4 mt-8">
+                                {!enrolled ? (
+                                    <button onClick={handleConfirmInterest} className="w-full sm:w-auto bg-gradient-to-r from-primary to-accent text-white px-8 py-4 rounded-2xl font-black text-lg shadow-xl shadow-primary/30 transform hover:-translate-y-1 transition-all flex items-center justify-center gap-3">
+                                        Confirm Interest & Enroll
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                                    </button>
+                                ) : (
+                                    <button disabled className="w-full sm:w-auto bg-gray-100 text-gray-400 px-8 py-4 rounded-2xl font-black text-lg flex items-center justify-center gap-2 cursor-not-allowed border border-gray-200">
+                                        <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                        Interest Confirmed
+                                    </button>
+                                )}
+                                
+                                <button onClick={generatePDF} className="w-full sm:w-auto bg-white text-primary border-2 border-primary/20 hover:border-primary hover:bg-primary/5 px-8 py-4 rounded-2xl font-black text-lg shadow-sm transition-all flex items-center justify-center gap-3">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                    Download PDF
                                 </button>
-                            ) : (
-                                <button disabled className="w-full md:w-auto self-start bg-gray-100 text-gray-400 px-8 py-4 rounded-2xl font-black text-lg flex items-center gap-2 cursor-not-allowed border border-gray-200">
-                                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                                    Interest Confirmed
-                                </button>
-                            )}
+                            </div>
                         </div>
                     </div>
                 </motion.div>
