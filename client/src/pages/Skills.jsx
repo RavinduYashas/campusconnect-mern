@@ -182,6 +182,12 @@ const Skills = () => {
         setShowSkillModal(true);
     };
 
+    const handleStudyClick = (skill) => {
+        setMessage(`You have expressed interest in studying "${skill.title}"!`);
+        setTimeout(() => setMessage(''), 3000);
+        // You can expand this later to save it to the DB if needed
+    };
+
     if (loading) return <div className="flex justify-center items-center h-screen font-bold text-primary">Loading Skill Exchange...</div>;
 
     const isStudent = user?.role === 'student';
@@ -333,6 +339,13 @@ const Skills = () => {
                                             <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
                                                 <button onClick={() => openEditSkill(skill)} className="flex-1 bg-gray-100 text-text-main px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors">Edit</button>
                                                 <button onClick={() => handleDeleteSkill(skill._id)} className="flex-1 bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors">Delete</button>
+                                            </div>
+                                        )}
+                                        {isStudent && (
+                                            <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                                                <button onClick={() => handleStudyClick(skill)} className="w-full bg-accent text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-cyan-600 transition-colors">
+                                                    Study
+                                                </button>
                                             </div>
                                         )}
                                     </div>
