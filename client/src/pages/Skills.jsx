@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 
 const Skills = () => {
+    const navigate = useNavigate();
     const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')));
     const [activeTab, setActiveTab] = useState('requests'); // 'requests' or 'offers'
     const [requests, setRequests] = useState([]);
@@ -183,9 +185,8 @@ const Skills = () => {
     };
 
     const handleStudyClick = (skill) => {
-        setMessage(`You have expressed interest in studying "${skill.title}"!`);
-        setTimeout(() => setMessage(''), 3000);
-        // You can expand this later to save it to the DB if needed
+        // Navigate to the beautiful Study Preview Dashboard
+        navigate(`/study-skill/${skill._id}`);
     };
 
     if (loading) return <div className="flex justify-center items-center h-screen font-bold text-primary">Loading Skill Exchange...</div>;

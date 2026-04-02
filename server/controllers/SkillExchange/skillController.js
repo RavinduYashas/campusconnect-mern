@@ -168,6 +168,20 @@ exports.getSkills = async (req, res) => {
     }
 };
 
+// @desc    Get a single published skill by ID
+// @route   GET /api/skills/offers/:id
+// @access  Private
+exports.getSkillById = async (req, res) => {
+    try {
+        const skill = await Skill.findById(req.params.id)
+            .populate('publishedBy', 'name avatar role email phone');
+        if (!skill) return res.status(404).json({ message: "Skill not found" });
+        res.json(skill);
+    } catch (error) {
+        res.status(500).json({ message: "Server Error", error: error.message });
+    }
+};
+
 // @desc    Update a skill
 // @route   PUT /api/skills/offers/:id
 // @access  Private (Owner only)

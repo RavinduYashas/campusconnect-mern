@@ -8,6 +8,7 @@ const {
     replyToSkillRequest,
     createSkill,
     getSkills,
+    getSkillById,
     updateSkill,
     deleteSkill
 } = require('../../controllers/SkillExchange/skillController');
@@ -31,6 +32,7 @@ router.route('/offers')
     .get(protect, getSkills);
 
 router.route('/offers/:id')
+    .get(protect, getSkillById)
     .put(protect, updateSkill)
     .delete(protect, deleteSkill);
 
