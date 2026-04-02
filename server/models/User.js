@@ -1,3 +1,4 @@
+// models/User.js
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
@@ -12,7 +13,6 @@ const userSchema = new mongoose.Schema({
     unique: true,
     trim: true,
     lowercase: true,
-    // match: /@(my\.sliit\.lk|sliitplatform\.com)$/ // Validated in controller per role
   },
   // Expert's personal email (only for sending credentials)
   realEmail: {
@@ -34,6 +34,17 @@ const userSchema = new mongoose.Schema({
   isBatchRep: {
     type: Boolean,
     default: false
+  },
+  // Batch Rep Details - only populated if isBatchRep is true
+  batchRepDetails: {
+    faculty: {
+      type: String,
+      enum: ['Computing', 'Engineering', 'Humanities and Sciences', 'Business', 'Architecture', 'Other']
+    },
+    academicYear: {
+      type: String,
+      enum: ['Year 1 Sem 1', 'Year 1 Sem 2', 'Year 2 Sem 1', 'Year 2 Sem 2', 'Year 3 Sem 1', 'Year 3 Sem 2', 'Year 4 Sem 1', 'Year 4 Sem 2']
+    }
   },
   registerNumber: String,
   field: String,
@@ -68,7 +79,7 @@ const userSchema = new mongoose.Schema({
   mustChangePassword: {
     type: Boolean,
     default: function () {
-      return this.role === "expert"; // force change for newly created experts
+      return this.role === "expert";
     }
   },
   banStatus: {

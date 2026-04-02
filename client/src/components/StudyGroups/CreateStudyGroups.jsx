@@ -1,27 +1,26 @@
-// components/Workshops/RequestWorkshopModal.jsx
+// components/StudyGroups/CreateStudyGroups.jsx
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
-const RequestWorkshopModal = ({ isOpen, onClose, onSuccess }) => {
+const CreateGroupModal = ({ isOpen, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
-    topic: '',
+    name: '',
     description: '',
-    category: 'Technical',
-    faculty: 'Computing',
-    academicYear: 'Year 1 Sem 1'
+    type: 'open',
+    faculty: 'Computing',  // Changed from category to faculty
+    academicYear: 'Year 1',
+    participantLimit: 20
   });
   const [loading, setLoading] = useState(false);
 
-  const categories = ['Technical', 'Soft Skills', 'Career Development', 'Research', 'Other'];
-  const faculties = ['Computing', 'Engineering', 'Humanities and Sciences', 'Business', 'Architecture', 'Other'];
-  const academicYears = [
-    'Year 1 Sem 1', 'Year 1 Sem 2',
-    'Year 2 Sem 1', 'Year 2 Sem 2',
-    'Year 3 Sem 1', 'Year 3 Sem 2',
-    'Year 4 Sem 1', 'Year 4 Sem 2'
+  const faculties = [
+    'Computing', 'Engineering', 'Humanities and Sciences', 'Business', 
+    'Architecture', 'Other'
   ];
+
+  const academicYears = ['Year 1', 'Year 2', 'Year 3', 'Year 4'];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -36,19 +35,21 @@ const RequestWorkshopModal = ({ isOpen, onClose, onSuccess }) => {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
 
-      await axios.post('/api/workshops/requests', formData, config);
-      toast.success('Workshop request submitted successfully! Your batch rep will review it.');
+      await axios.post('/api/study-groups', formData, config);
+      toast.success('Study group created successfully!');
       onSuccess();
       onClose();
       setFormData({
-        topic: '',
+        name: '',
         description: '',
-        category: 'Technical',
+        type: 'open',
         faculty: 'Computing',
-        academicYear: 'Year 1 Sem 1'
+        academicYear: 'Year 1',
+        participantLimit: 20
       });
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to submit request');
+      toast.error(error.response?.data?.message || 'Failed to create group');
+      console.error('Create group error:', error);
     } finally {
       setLoading(false);
     }
@@ -71,71 +72,56 @@ const RequestWorkshopModal = ({ isOpen, onClose, onSuccess }) => {
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-xl z-50 w-full max-w-md p-6"
           >
-            <h2 className="text-2xl font-bold text-primary mb-4">Request a Workshop</h2>
+            <h2 className="text-2xl font-bold text-primary mb-4">Create Study Group</h2>
             
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-text-secondary text-sm font-bold mb-2">Topic/Title *</label>
+                <label className="block text-text-secondary text-sm font-bold mb-2">Group Name</label>
                 <input
                   type="text"
-                  name="topic"
-                  value={formData.topic}
+                  name="name"
+                  value={formData.name}
                   onChange={handleChange}
                   required
+                  maxLength={100}
                   className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-primary focus:outline-none"
-                  placeholder="e.g., Advanced React Patterns Workshop"
+                  placeholder="e.g., JavaScript Study Group"
                 />
               </div>
 
               <div>
-                <label className="block text-text-secondary text-sm font-bold mb-2">Description *</label>
+                <label className="block text-text-secondary text-sm font-bold mb-2">Description</label>
                 <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
                   required
-                  rows={4}
+                  rows={3}
                   className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-primary focus:outline-none"
-                  placeholder="What would you like to learn? Any specific topics or requirements?"
+                  placeholder="Describe what your group is about..."
                 />
               </div>
 
               <div>
-                <label className="block text-text-secondary text-sm font-bold mb-2">Category</label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-primary focus:outline-none"
-                >
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-text-secondary text-sm font-bold mb-2">Faculty *</label>
+                <label className="block text-text-secondary text-sm font-bold mb-2">Faculty</label>
                 <select
                   name="faculty"
                   value={formData.faculty}
                   onChange={handleChange}
-                  required
                   className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-primary focus:outline-none"
                 >
-                  {faculties.map(f => (
-                    <option key={f} value={f}>{f}</option>
+                  {faculties.map(faculty => (
+                    <option key={faculty} value={faculty}>{faculty}</option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-text-secondary text-sm font-bold mb-2">Academic Year *</label>
+                <label className="block text-text-secondary text-sm font-bold mb-2">Academic Year</label>
                 <select
                   name="academicYear"
                   value={formData.academicYear}
                   onChange={handleChange}
-                  required
                   className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-primary focus:outline-none"
                 >
                   {academicYears.map(year => (
@@ -144,12 +130,51 @@ const RequestWorkshopModal = ({ isOpen, onClose, onSuccess }) => {
                 </select>
               </div>
 
-              <div className="bg-blue-50 rounded-lg p-3">
-                <p className="text-sm text-blue-800">
-                  💡 Your request will be sent to your batch representative for approval.
-                  Once approved, a workshop will be scheduled!
-                </p>
+              <div>
+                <label className="block text-text-secondary text-sm font-bold mb-2">Group Type</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="type"
+                      value="open"
+                      checked={formData.type === 'open'}
+                      onChange={handleChange}
+                      className="text-primary"
+                    />
+                    <span>Open Group</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="type"
+                      value="private"
+                      checked={formData.type === 'private'}
+                      onChange={handleChange}
+                      className="text-primary"
+                    />
+                    <span>Private Group</span>
+                  </label>
+                </div>
               </div>
+
+              {formData.type === 'private' && (
+                <div>
+                  <label className="block text-text-secondary text-sm font-bold mb-2">
+                    Participant Limit
+                  </label>
+                  <input
+                    type="number"
+                    name="participantLimit"
+                    value={formData.participantLimit}
+                    onChange={handleChange}
+                    min={2}
+                    max={100}
+                    required
+                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-primary focus:outline-none"
+                  />
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4">
                 <button
@@ -164,7 +189,7 @@ const RequestWorkshopModal = ({ isOpen, onClose, onSuccess }) => {
                   disabled={loading}
                   className="flex-1 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg font-semibold transition-all disabled:opacity-50"
                 >
-                  {loading ? 'Submitting...' : 'Submit Request'}
+                  {loading ? 'Creating...' : 'Create Group'}
                 </button>
               </div>
             </form>
@@ -175,4 +200,4 @@ const RequestWorkshopModal = ({ isOpen, onClose, onSuccess }) => {
   );
 };
 
-export default RequestWorkshopModal;
+export default CreateGroupModal;

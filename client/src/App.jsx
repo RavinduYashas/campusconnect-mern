@@ -1,3 +1,4 @@
+// App.jsx
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -6,9 +7,11 @@ import Profiles from './pages/Profiles';
 import ProfileView from './pages/ProfileView';
 import QA from './pages/QA';
 import Skills from './pages/Skills';
-import StudyGroups from './pages/StudyGroups';
+import StudyGroups from './pages/StudyGroups/StudyGroups';
+import StudyGroupDetails from './pages/StudyGroups/StudyGroupDetails';
 import Clubs from './pages/Clubs';
 import Sports from './pages/Sports';
+import Workshops from './pages/Workshops/Workshops';
 import AdminDashboard from './pages/AdminDashboard';
 import ManageUsers from './pages/adminDashboard/studentProfiles/ManageUsers';
 import StudentList from './pages/adminDashboard/studentProfiles/StudentList';
@@ -19,6 +22,12 @@ import SportsTeamList from './pages/adminDashboard/sports/SportsTeamList';
 import AllMembers from './pages/adminDashboard/AllMembers';
 import AdminLayout from './components/admin/AdminLayout';
 import ClientLayout from './components/ClientLayout';
+import BatchRepManagement from './pages/adminDashboard/BatchRepManagement';
+import BatchRepDashboard from './pages/BatchRepDashboard';
+import WorkshopDetails from './pages/Workshops/WorkshopDetails';
+
+
+
 
 function App() {
   return (
@@ -49,8 +58,16 @@ function App() {
           <Route path="/qa" element={<QA />} />
           <Route path="/skills" element={<Skills />} />
           <Route path="/groups" element={<StudyGroups />} />
+          <Route path="/study-groups/:id" element={<StudyGroupDetails />} />
           <Route path="/clubs" element={<Clubs />} />
           <Route path="/sports" element={<Sports />} />
+          <Route path="/workshops" element={<Workshops />} />
+          <Route path="batch-reps" element={<BatchRepManagement />} />
+          <Route path="/batch-rep-dashboard" element={<BatchRepDashboard />} />
+          <Route path="/workshops/:id" element={<WorkshopDetails />} />
+
+
+
         </Route>
       </Routes>
     </Router>
