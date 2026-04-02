@@ -10,7 +10,8 @@ const {
     getSkills,
     getSkillById,
     updateSkill,
-    deleteSkill
+    deleteSkill,
+    enrollInSkill
 } = require('../../controllers/SkillExchange/skillController');
 
 const { protect } = require('../../middleware/authMiddleware');
@@ -30,6 +31,9 @@ router.post('/requests/:id/reply', protect, replyToSkillRequest);
 router.route('/offers')
     .post(protect, createSkill)
     .get(protect, getSkills);
+
+// Enroll in skill
+router.post('/enroll/:id', protect, enrollInSkill);
 
 router.route('/offers/:id')
     .get(protect, getSkillById)

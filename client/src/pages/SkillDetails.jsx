@@ -12,6 +12,7 @@ const SkillDetails = () => {
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState('');
     const [enrolled, setEnrolled] = useState(false);
+    const [currentUser] = useState(JSON.parse(localStorage.getItem('user')));
 
     useEffect(() => {
         const fetchSkill = async () => {
@@ -22,6 +23,11 @@ const SkillDetails = () => {
                 });
                 setSkill(res.data);
                 setLoading(false);
+                
+                // Check if user is already enrolled
+                if (res.data.interestedStudents && res.data.interestedStudents.some(student => student._id === currentUser?._id)) {
+                    setEnrolled(true);
+                }
             } catch (error) {
                 console.error("Error fetching skill details:", error);
                 setMessage(error.response?.data?.message || "Failed to load skill details.");
@@ -29,11 +35,23 @@ const SkillDetails = () => {
             }
         };
         fetchSkill();
-    }, [id]);
+    }, [id, currentUser?._id]);
 
-    const handleConfirmInterest = () => {
-        setEnrolled(true);
-        setMessage("Success! You've expressed active interest in this skill. The expert will be notified.");
+    const handleConfirmInterest = async () => {
+        setLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post(`/api/skills/enroll/${id}`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setEnrolled(true);
+            setMessage("Success! You've successfully enrolled in this skill mentorship. The expert has been notified.");
+        } catch (error) {
+            setMessage(error.response?.data?.message || "Failed to enroll. Please try again later.");
+            setEnrolled(false);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const generatePDF = () => {

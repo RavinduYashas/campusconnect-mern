@@ -68,7 +68,7 @@ const SkillList = () => {
     };
 
     // Derived State
-    const currentData = activeTab === 'requests' ? requests : offers;
+    const currentData = activeTab === 'requests' ? requests : activeTab === 'offers' ? offers : offers.filter(o => o.interestedStudents && o.interestedStudents.length > 0);
     const filteredData = currentData.filter(item => 
         item.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
         (activeTab === 'requests' ? item.requestedBy?.name : item.publishedBy?.name)?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -98,7 +98,10 @@ const SkillList = () => {
         doc.setTextColor(100, 116, 139); // Gray-500
         doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
-        doc.text(`SKILL EXCHANGE MODERATION: ${activeTab === 'requests' ? 'STUDENT REQUESTS' : 'EXPERT OFFERS'}`, 14, 55);
+        let reportTitle = 'STUDENT REQUESTS';
+        if(activeTab === 'offers') reportTitle = 'EXPERT OFFERS';
+        if(activeTab === 'enrollments') reportTitle = 'ACTIVE ENROLLMENTS';
+        doc.text(`SKILL EXCHANGE MODERATION: ${reportTitle}`, 14, 55);
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
@@ -109,9 +112,23 @@ const SkillList = () => {
         }
 
         // --- 3. Table Data ---
-        const tableColumn = ["#", "Title", "Owner", "Role", "Date", "Items Count"];
+        let tableColumn = ["#", "Title", "Owner", "Role", "Date", "Items Count"];
+        if(activeTab === 'enrollments') {
+             tableColumn = ["#", "Skill Offering", "Expert Head", "Total Enrolled", "Students"];
+        }
         
         const tableRows = filteredData.map((item, index) => {
+            if(activeTab === 'enrollments') {
+                 const studentNames = item.interestedStudents?.map(s => s.name).join(', ') || 'None';
+                 return [
+                     index + 1,
+                     item.title,
+                     item.publishedBy?.name || 'Deleted User',
+                     item.interestedStudents?.length || 0,
+                     studentNames
+                 ];
+            }
+
             const ownerObj = activeTab === 'requests' ? item.requestedBy : item.publishedBy;
             const itemsCount = activeTab === 'requests' ? item.skillsNeeded?.length : item.skillsOffered?.length;
             return [
@@ -196,6 +213,13 @@ const SkillList = () => {
                         Expert Offers
                         <span className={`ml-2 px-2 py-0.5 rounded-lg text-[10px] ${activeTab === 'offers' ? 'bg-primary/10 text-primary' : 'bg-gray-200 text-gray-500'}`}>{offers.length}</span>
                     </button>
+                    <button
+                        onClick={() => { setActiveTab('enrollments'); setSearchTerm(''); }}
+                        className={`px-8 py-2.5 rounded-[18px] text-sm font-bold transition-all ${activeTab === 'enrollments' ? 'bg-white text-primary shadow-sm ring-1 ring-black/5' : 'text-text-secondary hover:text-text-main hover:bg-gray-100'}`}
+                    >
+                        Enrollment Logs
+                        <span className={`ml-2 px-2 py-0.5 rounded-lg text-[10px] ${activeTab === 'enrollments' ? 'bg-primary/10 text-primary' : 'bg-gray-200 text-gray-500'}`}>{offers.filter(o => o.interestedStudents?.length > 0).length}</span>
+                    </button>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 items-center">
@@ -237,16 +261,50 @@ const SkillList = () => {
                     <table className="w-full text-left">
                         <thead className="bg-gray-50/50 border-b border-gray-100">
                             <tr>
-                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">Listing Details</th>
-                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">Description Preview</th>
-                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">{activeTab === 'requests' ? 'Needed' : 'Offered'} Skills</th>
-                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">Date</th>
-                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest text-right">Moderation</th>
+                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">{activeTab === 'enrollments' ? 'Course Topic' : 'Listing Details'}</th>
+                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">{activeTab === 'enrollments' ? 'Expert Master' : 'Description Preview'}</th>
+                                {activeTab !== 'enrollments' && <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">{activeTab === 'requests' ? 'Needed' : 'Offered'} Skills</th>}
+                                <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest">{activeTab === 'enrollments' ? 'Enrolled Students' : 'Date'}</th>
+                                {activeTab !== 'enrollments' && <th className="px-8 py-5 text-xs font-black text-text-secondary uppercase tracking-widest text-right">Moderation</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             <AnimatePresence mode='popLayout'>
                                 {filteredData.map((item) => {
+                                    if (activeTab === 'enrollments') {
+                                        return (
+                                            <motion.tr
+                                                layout
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                exit={{ opacity: 0 }}
+                                                key={`enroll-${item._id}`}
+                                                className="hover:bg-gray-50/80 transition-colors group"
+                                            >
+                                                <td className="px-8 py-5">
+                                                    <h3 className="font-bold text-primary mb-1">{item.title}</h3>
+                                                    <div className="text-[11px] text-primary/70 font-black uppercase tracking-widest opacity-80">{item.interestedStudents?.length} active scholars</div>
+                                                </td>
+                                                <td className="px-8 py-5 font-bold text-text-main text-sm">
+                                                    {item.publishedBy?.name || 'Deleted User'}
+                                                </td>
+                                                <td className="px-8 py-5">
+                                                     <div className="flex flex-col gap-2">
+                                                        {item.interestedStudents?.map((student, i) => (
+                                                            <div key={i} className="flex items-center gap-2">
+                                                                <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center">
+                                                                    {student.name.charAt(0)}
+                                                                </div>
+                                                                <span className="text-sm font-semibold text-text-secondary">{student.name}</span>
+                                                                <span className="text-[10px] text-gray-400">{student.email}</span>
+                                                            </div>
+                                                        ))}
+                                                     </div>
+                                                </td>
+                                            </motion.tr>
+                                        );
+                                    }
+
                                     const ownerDetails = activeTab === 'requests' ? item.requestedBy : item.publishedBy;
                                     const userInitials = ownerDetails?.name ? ownerDetails.name.charAt(0) : '?';
                                     const targetSkills = activeTab === 'requests' ? item.skillsNeeded : item.skillsOffered;

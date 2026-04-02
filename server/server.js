@@ -121,7 +121,7 @@ const listRoutes = () => {
     }
 };
 
-// listRoutes();
+listRoutes();
 
 // Connect to Database and start server
 connectDB().then(() => {
@@ -138,3 +138,4 @@ connectDB().then(() => {
     console.error('Failed to connect to MongoDB:', err.message);
     process.exit(1);
 });
+// Force restart

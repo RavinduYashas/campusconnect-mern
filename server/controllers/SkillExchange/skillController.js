@@ -162,7 +162,8 @@ exports.createSkill = async (req, res) => {
 exports.getSkills = async (req, res) => {
     try {
         const skills = await Skill.find()
-            .populate('publishedBy', 'name avatar role')
+            .populate('publishedBy', 'name avatar role email')
+            .populate('interestedStudents', 'name avatar role email')
             .sort({ createdAt: -1 });
         res.json(skills);
     } catch (error) {
@@ -176,7 +177,8 @@ exports.getSkills = async (req, res) => {
 exports.getSkillById = async (req, res) => {
     try {
         const skill = await Skill.findById(req.params.id)
-            .populate('publishedBy', 'name avatar role email phone');
+            .populate('publishedBy', 'name avatar role email phone')
+            .populate('interestedStudents', 'name avatar role email phone');
         if (!skill) return res.status(404).json({ message: "Skill not found" });
         res.json(skill);
     } catch (error) {
@@ -227,6 +229,32 @@ exports.deleteSkill = async (req, res) => {
 
         await skill.deleteOne();
         res.json({ message: "Skill removed" });
+    } catch (error) {
+        res.status(500).json({ message: "Server Error", error: error.message });
+    }
+};
+
+// @desc    Enroll/Express interest in a skill
+// @route   POST /api/skills/offers/:id/enroll
+// @access  Private (Student only)
+exports.enrollInSkill = async (req, res) => {
+    try {
+        if (req.user.role !== 'student') {
+            return res.status(403).json({ message: "Only students can enroll in skills" });
+        }
+
+        const skill = await Skill.findById(req.params.id);
+        if (!skill) return res.status(404).json({ message: "Skill not found" });
+
+        // Check if already enrolled
+        if (skill.interestedStudents.includes(req.user._id)) {
+            return res.status(400).json({ message: "Already enrolled" });
+        }
+
+        skill.interestedStudents.push(req.user._id);
+        await skill.save();
+
+        res.json({ message: "Successfully enrolled in skill module" });
     } catch (error) {
         res.status(500).json({ message: "Server Error", error: error.message });
     }
