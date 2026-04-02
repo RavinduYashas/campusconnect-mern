@@ -501,17 +501,18 @@ const Profiles = () => {
                                                 )}
                                                 <div className="bg-white rounded-xl p-4 shadow-sm text-center">
                                                     <div className="text-xl font-bold text-text-main uppercase">
-                                                        {user.role === 'admin' ? 'Live' : (qaData.stats.totalAnswers || 0)}
+                                                        {user.role === 'admin' ? 'Live' :
+                                                            (user.role === 'student' ? (qaData.stats.solvedQuestions || 0) : (qaData.stats.totalAnswers || 0))}
                                                     </div>
                                                     <div className="text-xs text-text-secondary uppercase font-bold tracking-tighter">
-                                                        {user.role === 'admin' ? 'Service' : 'Contribs'}
+                                                        {user.role === 'admin' ? 'Service' : (user.role === 'expert' ? 'Contribute' : 'Solved Questions')}
                                                     </div>
                                                 </div>
                                                 {user.role === 'expert' && (
                                                     <>
                                                         <div className="bg-white rounded-xl p-4 shadow-sm text-center border-t-2 border-green-500/20">
                                                             <div className="text-xl font-bold text-green-600">
-                                                                 {qaData.stats.solvedSolutions || 0}
+                                                                {qaData.stats.solvedSolutions || 0}
                                                             </div>
                                                             <div className="text-xs text-text-secondary uppercase font-bold tracking-tighter">
                                                                 Solved
@@ -522,7 +523,7 @@ const Profiles = () => {
                                                                 {qaData.stats.helpfulLikes || 0}
                                                             </div>
                                                             <div className="text-xs text-text-secondary uppercase font-bold tracking-tighter">
-                                                                Likes
+                                                                Liked
                                                             </div>
                                                         </div>
                                                     </>

@@ -486,7 +486,8 @@ exports.getProfileQAData = async (req, res) => {
             .sort({ createdAt: -1 });
 
         // Reputation stats
-        const solvedCount = await Answer.countDocuments({ answeredBy: userId, isSolved: true });
+        const solvedSolutionsCount = await Answer.countDocuments({ answeredBy: userId, isSolved: true });
+        const solvedQuestionsAskedCount = await Question.countDocuments({ askedBy: userId, isSolved: true });
 
         let totalLikes = 0;
         answers.forEach(ans => {
@@ -499,7 +500,8 @@ exports.getProfileQAData = async (req, res) => {
             stats: {
                 totalPosts: questions.length,
                 totalAnswers: answers.length,
-                solvedSolutions: solvedCount,
+                solvedSolutions: solvedSolutionsCount,
+                solvedQuestions: solvedQuestionsAskedCount,
                 helpfulLikes: totalLikes
             }
         });
