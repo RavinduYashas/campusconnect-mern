@@ -11,6 +11,7 @@ const Skills = () => {
     const [skills, setSkills] = useState([]);
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState('');
+    const [skillSearch, setSkillSearch] = useState('');
 
     // Modals state
     const [showRequestModal, setShowRequestModal] = useState(false);
@@ -300,12 +301,24 @@ const Skills = () => {
                 {/* Content: Expert Skills */}
                 {activeTab === 'offers' && (
                     <div>
-                        <div className="flex justify-between items-center mb-6">
+                        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
                             <h2 className="text-2xl font-bold">Expert Skills</h2>
+                            <div className="flex-1 max-w-md w-full">
+                                <div className="relative">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Search by title or skill (e.g., React, Node)..." 
+                                        value={skillSearch}
+                                        onChange={(e) => setSkillSearch(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                                    />
+                                    <svg className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                </div>
+                            </div>
                             {isExpert && (
                                 <button
                                     onClick={() => { setEditingSkill(null); setSkillForm({ title: '', description: '', skillsOffered: '' }); setShowSkillModal(true); }}
-                                    className="bg-accent text-white px-6 py-2 rounded-2xl font-bold shadow-lg shadow-accent/20 transform hover:-translate-y-1 transition-all"
+                                    className="bg-accent text-white px-6 py-2 rounded-2xl font-bold shadow-lg shadow-accent/20 transform hover:-translate-y-1 transition-all whitespace-nowrap"
                                 >
                                     + Publish Skill
                                 </button>
@@ -316,8 +329,17 @@ const Skills = () => {
                             <p className="text-center text-text-secondary py-10">No skills published yet.</p>
                         ) : (
                             <div className="grid md:grid-cols-2 gap-6">
-                                {skills.map(skill => (
-                                    <div key={skill._id} className="border border-gray-100 p-6 rounded-2xl bg-white hover:shadow-lg transition-all shadow-sm flex flex-col justify-between">
+                                {skills.filter(skill => 
+                                    skill.title.toLowerCase().includes(skillSearch.toLowerCase()) || 
+                                    skill.skillsOffered.some(s => s.toLowerCase().includes(skillSearch.toLowerCase()))
+                                ).length === 0 ? (
+                                    <p className="text-center text-text-secondary col-span-2 py-8">No specific skills found matching "{skillSearch}".</p>
+                                ) : (
+                                    skills.filter(skill => 
+                                        skill.title.toLowerCase().includes(skillSearch.toLowerCase()) || 
+                                        skill.skillsOffered.some(s => s.toLowerCase().includes(skillSearch.toLowerCase()))
+                                    ).map(skill => (
+                                        <div key={skill._id} className="border border-gray-100 p-6 rounded-2xl bg-white hover:shadow-lg transition-all shadow-sm flex flex-col justify-between">
                                         <div>
                                             <div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-4">
                                                 <img src={`/${skill.publishedBy?.avatar || 'avatars/avatar1.png'}`} alt="" className="w-12 h-12 rounded-full border border-gray-200" />
@@ -349,8 +371,9 @@ const Skills = () => {
                                                 </button>
                                             </div>
                                         )}
-                                    </div>
-                                ))}
+                                        </div>
+                                    ))
+                                )}
                             </div>
                         )}
                     </div>
