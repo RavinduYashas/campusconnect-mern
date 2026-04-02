@@ -239,23 +239,23 @@ exports.deleteSkill = async (req, res) => {
 // @access  Private (Student only)
 exports.enrollInSkill = async (req, res) => {
     try {
-        if (req.user.role !== 'student') {
+        if (!req.user || req.user.role !== 'student') {
             return res.status(403).json({ message: "Only students can enroll in skills" });
         }
 
-        const skill = await Skill.findById(req.params.id);
-        if (!skill) return res.status(404).json({ message: "Skill not found" });
+        const skill = await Skill.findByIdAndUpdate(
+            req.params.id,
+            { $addToSet: { interestedStudents: req.user._id } },
+            { new: true, runValidators: false }
+        );
 
-        // Check if already enrolled
-        if (skill.interestedStudents.includes(req.user._id)) {
-            return res.status(400).json({ message: "Already enrolled" });
+        if (!skill) {
+            return res.status(404).json({ message: "Skill not found" });
         }
-
-        skill.interestedStudents.push(req.user._id);
-        await skill.save();
 
         res.json({ message: "Successfully enrolled in skill module" });
     } catch (error) {
-        res.status(500).json({ message: "Server Error", error: error.message });
+        console.error("Enrollment Route Crash:", error);
+        res.status(500).json({ message: "Server Error", error: error.message || error.toString() });
     }
 };
