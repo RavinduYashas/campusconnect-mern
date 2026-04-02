@@ -18,11 +18,7 @@ const skillSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
-    },
-    interestedStudents: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-    }]
+    }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Skill', skillSchema);

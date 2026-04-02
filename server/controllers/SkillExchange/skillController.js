@@ -81,11 +81,9 @@ exports.deleteSkillRequest = async (req, res) => {
         const request = await SkillRequest.findById(req.params.id);
         if (!request) return res.status(404).json({ message: "Request not found" });
 
-        // Verify ownership OR Admin Role
-        if (req.user.role !== 'admin') {
-            if (!request.requestedBy || request.requestedBy.toString() !== req.user._id.toString()) {
-                return res.status(403).json({ message: "Not authorized to delete this request" });
-            }
+        // Verify ownership
+        if (request.requestedBy.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: "Not authorized to delete this request" });
         }
 
         await request.deleteOne();
@@ -162,25 +160,9 @@ exports.createSkill = async (req, res) => {
 exports.getSkills = async (req, res) => {
     try {
         const skills = await Skill.find()
-            .populate('publishedBy', 'name avatar role email')
-            .populate('interestedStudents', 'name avatar role email')
+            .populate('publishedBy', 'name avatar role')
             .sort({ createdAt: -1 });
         res.json(skills);
-    } catch (error) {
-        res.status(500).json({ message: "Server Error", error: error.message });
-    }
-};
-
-// @desc    Get a single published skill by ID
-// @route   GET /api/skills/offers/:id
-// @access  Private
-exports.getSkillById = async (req, res) => {
-    try {
-        const skill = await Skill.findById(req.params.id)
-            .populate('publishedBy', 'name avatar role email phone')
-            .populate('interestedStudents', 'name avatar role email phone');
-        if (!skill) return res.status(404).json({ message: "Skill not found" });
-        res.json(skill);
     } catch (error) {
         res.status(500).json({ message: "Server Error", error: error.message });
     }
@@ -220,42 +202,14 @@ exports.deleteSkill = async (req, res) => {
         const skill = await Skill.findById(req.params.id);
         if (!skill) return res.status(404).json({ message: "Skill not found" });
 
-        // Verify ownership OR Admin Role
-        if (req.user.role !== 'admin') {
-            if (!skill.publishedBy || skill.publishedBy.toString() !== req.user._id.toString()) {
-                return res.status(403).json({ message: "Not authorized to delete this skill" });
-            }
+        // Verify ownership
+        if (skill.publishedBy.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: "Not authorized to delete this skill" });
         }
 
         await skill.deleteOne();
         res.json({ message: "Skill removed" });
     } catch (error) {
         res.status(500).json({ message: "Server Error", error: error.message });
-    }
-};
-
-// @desc    Enroll/Express interest in a skill
-// @route   POST /api/skills/offers/:id/enroll
-// @access  Private (Student only)
-exports.enrollInSkill = async (req, res) => {
-    try {
-        if (!req.user || req.user.role !== 'student') {
-            return res.status(403).json({ message: "Only students can enroll in skills" });
-        }
-
-        const skill = await Skill.findByIdAndUpdate(
-            req.params.id,
-            { $addToSet: { interestedStudents: req.user._id } },
-            { new: true, runValidators: false }
-        );
-
-        if (!skill) {
-            return res.status(404).json({ message: "Skill not found" });
-        }
-
-        res.json({ message: "Successfully enrolled in skill module" });
-    } catch (error) {
-        console.error("Enrollment Route Crash:", error);
-        res.status(500).json({ message: "Server Error", error: error.message || error.toString() });
     }
 };
