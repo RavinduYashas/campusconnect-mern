@@ -17,6 +17,9 @@ const SkillList = () => {
     const [activeTab, setActiveTab] = useState('requests'); 
     const [searchTerm, setSearchTerm] = useState('');
 
+    // Delete Modal State
+    const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null, type: null });
+
     useEffect(() => {
         if (!currentUser || currentUser.role !== 'admin') {
             navigate('/login');
@@ -42,20 +45,25 @@ const SkillList = () => {
         }
     };
 
-    const handleDelete = async (id, type) => {
-        if (window.confirm(`Are you sure you want to forcibly delete this ${type === 'requests' ? 'student request' : 'expert offer'}?`)) {
-            try {
-                const token = localStorage.getItem('token');
-                if (type === 'requests') {
-                    await axios.delete(`/api/skills/requests/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-                    setRequests(requests.filter(item => item._id !== id));
-                } else {
-                    await axios.delete(`/api/skills/offers/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-                    setOffers(offers.filter(item => item._id !== id));
-                }
-            } catch (err) {
-                alert(err.response?.data?.message || 'Failed to delete record');
+    const triggerDelete = (id, type) => {
+        setDeleteModal({ isOpen: true, id, type });
+    };
+
+    const confirmDelete = async () => {
+        const { id, type } = deleteModal;
+        try {
+            const token = localStorage.getItem('token');
+            if (type === 'requests') {
+                await axios.delete(`/api/skills/requests/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+                setRequests(requests.filter(item => item._id !== id));
+            } else {
+                await axios.delete(`/api/skills/offers/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+                setOffers(offers.filter(item => item._id !== id));
             }
+            setDeleteModal({ isOpen: false, id: null, type: null });
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to delete record');
+            setDeleteModal({ isOpen: false, id: null, type: null });
         }
     };
 
@@ -281,7 +289,7 @@ const SkillList = () => {
                                             </td>
                                             <td className="px-8 py-5 text-right">
                                                 <button
-                                                    onClick={() => handleDelete(item._id, activeTab)}
+                                                    onClick={() => triggerDelete(item._id, activeTab)}
                                                     className="bg-red-50 text-error hover:bg-red-100 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-colors inline-block"
                                                 >
                                                     Force Delete
@@ -307,6 +315,44 @@ const SkillList = () => {
                     </table>
                 </div>
             </motion.div>
+
+            {/* Custom Delete Confirmation Modal */}
+            <AnimatePresence>
+                {deleteModal.isOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0 }} 
+                            animate={{ scale: 1, opacity: 1 }} 
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl relative overflow-hidden text-center"
+                        >
+                            <div className="w-16 h-16 bg-red-100 text-error rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-red-50">
+                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </div>
+                            <h3 className="text-2xl font-black text-text-main mb-2">Are you sure?</h3>
+                            <p className="text-text-secondary text-sm mb-8 font-medium">
+                                Do you really want to permanently delete this {deleteModal.type === 'requests' ? 'student request' : 'expert offer'}? This action cannot be undone.
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setDeleteModal({ isOpen: false, id: null, type: null })}
+                                    className="flex-1 px-4 py-3 rounded-xl font-bold bg-gray-100 text-text-main hover:bg-gray-200 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    className="flex-1 px-4 py-3 rounded-xl font-bold bg-error text-white shadow-lg shadow-red-500/30 hover:bg-red-600 transition-colors"
+                                >
+                                    Yes, Delete!
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
