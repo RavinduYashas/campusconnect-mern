@@ -29,7 +29,7 @@ const sendVerificationEmail = async (email, otp) => {
           <div style="background-color: #f3f4f6; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #2563eb; border-radius: 8px; margin: 20px 0;">
             ${otp}
           </div>
-          <p>This code expires in 10 minutes.</p>
+          <p>This code expires in 3 minutes.</p>
           <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
           <p style="font-size: 12px; color: #6b7280; text-align: center;">© 2026 CampusConnect. All rights reserved.</p>
         </div>
