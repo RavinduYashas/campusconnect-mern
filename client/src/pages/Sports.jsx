@@ -1,6 +1,19 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useToast } from '../context/ToastContext';
+import ModuleAssistant from '../components/ModuleAssistant';
 import './Sports.css';
+
+const getTodayMinDateTime = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const hours = String(today.getHours()).padStart(2, '0');
+    const minutes = String(today.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 
 // Live countdown timer component
 const CountdownTimer = ({ targetDate }) => {
@@ -38,7 +51,9 @@ const CountdownTimer = ({ targetDate }) => {
 
 const Sports = () => {
     const navigate = useNavigate();
+    const { showToast } = useToast();
     const [teams, setTeams] = useState([]);
+    const [userRequests, setUserRequests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedType, setSelectedType] = useState('All');
     const [selectedTeam, setSelectedTeam] = useState(null);
@@ -95,6 +110,18 @@ const Sports = () => {
             }
         };
         fetchTeams();
+        const fetchMyRequests = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            try {
+                const res = await fetch('/api/sports/requests/my', { headers: { Authorization: `Bearer ${token}` } });
+                if (res.ok) {
+                    const data = await res.json();
+                    setUserRequests(Array.isArray(data) ? data : []);
+                }
+            } catch (err) { setUserRequests([]); }
+        };
+        fetchMyRequests();
     }, []);
 
     const handleViewMembers = async (teamId) => {
@@ -105,7 +132,7 @@ const Sports = () => {
             const data = await res.json();
             setSelectedTeam(data);
         } catch (err) {
-            alert('Could not load team members');
+            showToast('Could not load team members', 'error');
         } finally {
             setLoadingMembers(false);
         }
@@ -235,6 +262,7 @@ const Sports = () => {
                             {filteredTeams.map((t) => {
                                 const teamId = t._id || t.id;
                                 const isMember = currentUser && t.members && (t.members.includes(currentUser._id) || t.members.includes(currentUser.id));
+                                const isPending = userRequests.some(r => (r.sport?._id || r.sport) === teamId && r.status === 'pending');
                                 const isAdmin = currentUser && currentUser.role === 'admin';
                                 const isCreator = currentUser && t.createdBy && (t.createdBy._id === (currentUser._id || currentUser.id) || t.createdBy === (currentUser._id || currentUser.id));
 
@@ -257,22 +285,21 @@ const Sports = () => {
                                                     <button 
                                                         className="flex-1 bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold py-2.5 px-2 rounded-lg text-xs border border-orange-200 transition-colors duration-200 shadow-sm flex items-center justify-center gap-1"
                                                         onClick={() => setJoinSuccess({
-                                                            name: t.name,
-                                                            id: teamId,
-                                                            message: t.nextSession?.date ? 'Get ready for our next activity! Check the details and RSVP below.' : 'No upcoming session is currently scheduled for this team.',
-                                                            nextSession: t.nextSession,
-                                                            isMember: true,
+                                                            name: t.name, id: teamId, 
+                                                            message: t.nextSession?.date ? 'Get ready for our next activity! Check the details and RSVP below.' : 'No upcoming session is currently scheduled for this team.', 
+                                                            nextSession: t.nextSession, isMember: true,
                                                             isAdmin: isAdmin || isCreator,
                                                             isCreator: isCreator,
-                                                            _rsvpStatus: t._rsvpStatus,
-                                                            _going: t._going,
-                                                            _notGoing: t._notGoing,
-                                                            isExistingMember: true
+                                                            _rsvpStatus: t._rsvpStatus, _going: t._going, _notGoing: t._notGoing, isExistingMember: true
                                                         })}
                                                     >
                                                         <span>📅</span> Session
                                                     </button>
                                                 </div>
+                                            ) : isPending ? (
+                                                <button className="flex-1 bg-amber-50 text-amber-700 font-semibold py-2.5 px-3 rounded-lg text-sm border border-amber-200 shadow-sm flex items-center justify-center gap-2 cursor-default">
+                                                    <span>⏳</span> Pending
+                                                </button>
                                             ) : (isAdmin || isCreator) ? (
                                                 <div className="flex gap-2 flex-1">
                                                     <button
@@ -287,18 +314,20 @@ const Sports = () => {
                                                                 });
                                                                 const body = await res.json();
                                                                 if (!res.ok) throw new Error(body.message || 'Could not join');
+                                                                const isNowPending = body.message?.toLowerCase().includes('pending') || body.message?.toLowerCase().includes('submitted');
                                                                 const isNowMember = body.message?.toLowerCase().includes('joined');
                                                                 if (isNowMember) {
                                                                     const updatedMembers = [...(t.members || []), (currentUser._id || currentUser.id)];
                                                                     setTeams(prev => prev.map(tm => (tm._id || tm.id) === teamId ? {...tm, members: updatedMembers} : tm));
+                                                                } else if (isNowPending) {
+                                                                    setUserRequests(prev => [...prev, { sport: teamId, status: 'pending' }]);
                                                                 }
                                                                 setJoinSuccess({ 
                                                                     name: t.name, id: teamId, message: body.message, nextSession: t.nextSession, isMember: isNowMember,
                                                                     isAdmin: isAdmin || isCreator,
                                                                     isCreator: isCreator,
-                                                                    _rsvpStatus: t._rsvpStatus, _going: t._going, _notGoing: t._notGoing, isExistingMember: false
                                                                 });
-                                                            } catch (err) { alert(err.message); }
+                                                            } catch (err) { showToast(err.message, 'error'); }
                                                         }}
                                                     >
                                                         <span>✚</span> Join
@@ -330,10 +359,13 @@ const Sports = () => {
                                                             });
                                                             const body = await res.json();
                                                             if (!res.ok) throw new Error(body.message || 'Could not join');
+                                                            const isNowPending = body.message?.toLowerCase().includes('pending') || body.message?.toLowerCase().includes('submitted');
                                                             const isNowMember = body.message?.toLowerCase().includes('joined');
                                                             if (isNowMember) {
                                                                 const updatedMembers = [...(t.members || []), (currentUser._id || currentUser.id)];
                                                                 setTeams(prev => prev.map(tm => (tm._id || tm.id) === teamId ? {...tm, members: updatedMembers} : tm));
+                                                            } else if (isNowPending) {
+                                                                setUserRequests(prev => [...prev, { sport: teamId, status: 'pending' }]);
                                                             }
                                                             setJoinSuccess({ 
                                                                 name: t.name, id: teamId, message: body.message, nextSession: t.nextSession, isMember: isNowMember,
@@ -341,7 +373,7 @@ const Sports = () => {
                                                                 isCreator: isCreator,
                                                                 _rsvpStatus: t._rsvpStatus, _going: t._going, _notGoing: t._notGoing, isExistingMember: false
                                                             });
-                                                        } catch (err) { alert(err.message); }
+                                                        } catch (err) { showToast(err.message, 'error'); }
                                                     }}
                                                 >
                                                     <span>✚</span> Join
@@ -362,6 +394,17 @@ const Sports = () => {
                     )}
                 </section>
             </main>
+
+            <ModuleAssistant
+                moduleName="sports"
+                moduleTitle="Sports"
+                items={teams}
+                loading={loading}
+                anchorId="teams"
+                onShowSchedules={() => setShowScheduleOverview(true)}
+                onResetFilters={() => setSelectedType('All')}
+                showReset={selectedType !== 'All'}
+            />
 
             {selectedTeam && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -470,7 +513,7 @@ const Sports = () => {
                                                     if (!res.ok) throw new Error(body.message);
                                                     setJoinSuccess(prev => ({...prev, _rsvpStatus: 'going', _going: body.going, _notGoing: body.notGoing }));
                                                     setTeams(prev => prev.map(tm => (tm._id || tm.id) === joinSuccess.id ? {...tm, _rsvpStatus: 'going', _going: body.going, _notGoing: body.notGoing } : tm));
-                                                } catch (err) { alert(err.message); }
+                                                } catch (err) { showToast(err.message, 'error'); }
                                             }}
                                         >
                                             {joinSuccess._rsvpStatus === 'going' && <span>✓</span>} Join Training Session {joinSuccess._going ? `(${joinSuccess._going})` : ''}
@@ -493,7 +536,7 @@ const Sports = () => {
                                                     if (!res.ok) throw new Error(body.message);
                                                     setJoinSuccess(prev => ({...prev, _rsvpStatus: 'not_going', _going: body.going, _notGoing: body.notGoing }));
                                                     setTeams(prev => prev.map(tm => (tm._id || tm.id) === joinSuccess.id ? {...tm, _rsvpStatus: 'not_going', _going: body.going, _notGoing: body.notGoing } : tm));
-                                                } catch (err) { alert(err.message); }
+                                                } catch (err) { showToast(err.message, 'error'); }
                                             }}
                                         >
                                             {joinSuccess._rsvpStatus === 'not_going' && <span>✕</span>} Can't Attend {joinSuccess._notGoing ? `(${joinSuccess._notGoing})` : ''}
@@ -510,6 +553,7 @@ const Sports = () => {
                                             <label className="block text-[10px] font-bold text-blue-700 uppercase mb-1 ml-1">Date & Time</label>
                                             <input 
                                                 type="datetime-local" 
+                                                min={getTodayMinDateTime()}
                                                 value={editDate}
                                                 onChange={(e) => setEditDate(e.target.value)}
                                                 className="w-full bg-white border border-blue-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-gray-700"
@@ -545,7 +589,8 @@ const Sports = () => {
                                                         setJoinSuccess(prev => ({...prev, nextSession: body.nextSession }));
                                                         setTeams(prev => prev.map(tm => (tm._id || tm.id) === joinSuccess.id ? {...tm, nextSession: body.nextSession } : tm));
                                                         setIsEditingSession(false);
-                                                    } catch (err) { alert(err.message); }
+                                                        showToast('Session scheduled successfully!', 'success');
+                                                    } catch (err) { showToast(err.message, 'error'); }
                                                     finally { setIsSavingSession(false); }
                                                 }}
                                             >

@@ -10,9 +10,6 @@ const createClub = async (req, res) => {
         if (!name) return res.status(400).json({ message: 'Club name is required' });
         // name must contain only letters and spaces
         if (!/^[A-Za-z\s]+$/.test(name)) return res.status(400).json({ message: 'Club name may only contain letters and spaces' });
-        if (!coach) return res.status(400).json({ message: 'Coach is required' });
-        if (!/^[A-Za-z\s]+$/.test(coach)) return res.status(400).json({ message: 'Coach may only contain letters and spaces' });
-
         let mm;
         if (typeof maxMembers !== 'undefined' && maxMembers !== null && maxMembers !== '') {
             mm = parseInt(maxMembers, 10);
@@ -52,46 +49,81 @@ const getClubs = async (req, res) => {
         // Support filtering, search and pagination
         const { page = 1, limit = 10, isActive, createdBy, minMembers, search, sort } = req.query;
 
-        const q = {};
+        const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+        const perPage = Math.max(parseInt(limit, 10) || 10, 1);
+        const minCount = minMembers !== undefined && minMembers !== null && minMembers !== '' ? parseInt(minMembers, 10) : null;
+
+        const pipeline = [];
+        const match = {};
+
         // isActive filter: expected 'true'|'false'
         if (typeof isActive !== 'undefined') {
-            if (isActive === 'true') q.isActive = true;
-            else if (isActive === 'false') q.isActive = false;
+            if (isActive === 'true') match.isActive = true;
+            else if (isActive === 'false') match.isActive = false;
         }
 
-        if (createdBy) q.createdBy = createdBy;
-
-        if (typeof minMembers !== 'undefined') {
-            const n = parseInt(minMembers, 10);
-            if (!isNaN(n)) q.members = { $size: { $gte: n } };
-        }
-
-        // text search on name/description
-        if (search) {
-            const re = new RegExp(search, 'i');
-            q.$or = [ { name: re }, { description: re } ];
-        }
+        if (createdBy) match.createdBy = createdBy;
 
         // Default: if not admin, only active
         if (!(req.user && req.user.role === 'admin') && typeof isActive === 'undefined') {
-            q.isActive = true;
+            match.isActive = true;
         }
 
-        const pageNum = Math.max(parseInt(page, 10) || 1, 1);
-        const perPage = Math.max(parseInt(limit, 10) || 10, 1);
+        if (Object.keys(match).length) pipeline.push({ $match: match });
 
-        let cursor = Club.find(q).populate('createdBy', 'name email avatar');
-        // simple sort handling
+        pipeline.push({
+            $lookup: {
+                from: 'users',
+                localField: 'members',
+                foreignField: '_id',
+                as: 'members'
+            }
+        });
+
+        if (search) {
+            const re = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+            pipeline.push({
+                $match: {
+                    $or: [
+                        { name: re },
+                        { description: re },
+                        { 'members.email': re }
+                    ]
+                }
+            });
+        }
+
+        if (minCount !== null && !Number.isNaN(minCount)) {
+            pipeline.push({ $addFields: { membersCount: { $size: '$members' } } });
+            pipeline.push({ $match: { membersCount: { $gte: minCount } } });
+        }
+
         if (sort) {
-            cursor = cursor.sort(sort);
+            const sortParts = {};
+            String(sort).split(',').forEach((part) => {
+                const [field, dir] = part.split(':');
+                if (field) sortParts[field.trim()] = String(dir || 'asc').toLowerCase() === 'desc' ? -1 : 1;
+            });
+            if (Object.keys(sortParts).length) pipeline.push({ $sort: sortParts });
         } else {
-            cursor = cursor.sort('-createdAt');
+            pipeline.push({ $sort: { createdAt: -1 } });
         }
 
-        const total = await Club.countDocuments(q);
-        const clubs = await cursor.skip((pageNum - 1) * perPage).limit(perPage).exec();
+        const clubs = await Club.aggregate(pipeline);
+        const total = clubs.length;
+        const totalPages = Math.max(1, Math.ceil(total / perPage));
+        const start = (pageNum - 1) * perPage;
+        const dataSlice = clubs.slice(start, start + perPage);
 
-        res.json({ data: clubs, meta: { total, page: pageNum, limit: perPage, pages: Math.ceil(total / perPage) } });
+        const ids = dataSlice.map(d => d._id);
+        let data = [];
+        if (ids.length) {
+            data = await Club.find({ _id: { $in: ids } }).populate('createdBy', 'name email avatar');
+            const byId = new Map(data.map(d => [d._id.toString(), d]));
+            data = ids.map(id => byId.get(id.toString()) || null).filter(Boolean);
+        }
+
+        res.json({ data, meta: { total, page: pageNum, limit: perPage, pages: totalPages } });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -221,11 +253,7 @@ const updateClub = async (req, res) => {
 
         club.description = req.body.description || club.description;
 
-        if (typeof req.body.coach !== 'undefined') {
-            if (!req.body.coach) return res.status(400).json({ message: 'Coach is required' });
-            if (!/^[A-Za-z\s]+$/.test(req.body.coach)) return res.status(400).json({ message: 'Coach may only contain letters and spaces' });
-            club.coach = req.body.coach;
-        }
+        
 
         if (typeof req.body.maxMembers !== 'undefined') {
             if (req.body.maxMembers === null || req.body.maxMembers === '') {

@@ -36,9 +36,14 @@ import WorkshopDetails from './pages/Workshops/WorkshopDetails';
 
 
 
+import { ToastProvider } from './context/ToastContext';
+import { ConfirmProvider } from './context/ConfirmContext';
+
 function App() {
   return (
-    <Router>
+    <ToastProvider>
+      <ConfirmProvider>
+        <Router>
       <Routes>
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminLayout />}>
@@ -85,7 +90,9 @@ function App() {
 
         </Route>
       </Routes>
-    </Router>
+      </Router>
+      </ConfirmProvider>
+    </ToastProvider>
   );
 }
 

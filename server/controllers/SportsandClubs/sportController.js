@@ -207,6 +207,16 @@ const getRequests = async (req, res) => {
     }
 };
 
+// User: get my own requests
+const getMyRequests = async (req, res) => {
+    try {
+        const requests = await SportRequest.find({ user: req.user._id });
+        res.json(requests);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
 // Approve a request (admin/creator)
 const approveRequest = async (req, res) => {
     try {
@@ -338,36 +348,59 @@ const getAllSports = async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const search = (req.query.search || '').trim();
         const isActive = req.query.isActive;
-        const minMembers = req.query.minMembers ? parseInt(req.query.minMembers) : null;
+        const minMembers = req.query.minMembers ? parseInt(req.query.minMembers, 10) : null;
 
-        const filter = {};
+        const pipeline = [];
+        const match = {};
         if (typeof isActive !== 'undefined') {
-            filter.isActive = isActive === 'true' || isActive === '1' || isActive === true;
+            match.isActive = isActive === 'true' || isActive === '1' || isActive === true;
         }
+
+        if (Object.keys(match).length) pipeline.push({ $match: match });
+
+        pipeline.push({
+            $lookup: {
+                from: 'users',
+                localField: 'members',
+                foreignField: '_id',
+                as: 'members'
+            }
+        });
 
         if (search) {
             const rx = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-            filter.$or = [ { name: rx }, { description: rx } ];
+            pipeline.push({
+                $match: {
+                    $or: [
+                        { name: rx },
+                        { description: rx },
+                        { 'members.email': rx }
+                    ]
+                }
+            });
         }
 
-        // base query
-        let query = Sport.find(filter).populate('createdBy', 'name email avatar');
-
-        // apply minMembers by aggregation-like filtering after count
-        if (minMembers) {
-            // fetch all then filter by members length (acceptable for admin lists)
-            const all = await Sport.find(filter).populate('createdBy', 'name email avatar');
-            const filtered = all.filter(s => (s.members || []).length >= minMembers);
-            const total = filtered.length;
-            const totalPages = Math.ceil(total / limit) || 1;
-            const start = (page - 1) * limit;
-            const data = filtered.slice(start, start + limit);
-            return res.json({ data, meta: { page, limit, total, totalPages } });
+        if (minMembers && !Number.isNaN(minMembers)) {
+            pipeline.push({ $addFields: { membersCount: { $size: '$members' } } });
+            pipeline.push({ $match: { membersCount: { $gte: minMembers } } });
         }
 
-        const total = await Sport.countDocuments(filter);
+        pipeline.push({ $sort: { createdAt: -1 } });
+
+        const sports = await Sport.aggregate(pipeline);
+        const total = sports.length;
         const totalPages = Math.ceil(total / limit) || 1;
-        const data = await query.skip((page - 1) * limit).limit(limit).exec();
+        const start = (page - 1) * limit;
+        const dataSlice = sports.slice(start, start + limit);
+
+        const ids = dataSlice.map(d => d._id);
+        let data = [];
+        if (ids.length) {
+            data = await Sport.find({ _id: { $in: ids } }).populate('createdBy', 'name email avatar');
+            const byId = new Map(data.map(d => [d._id.toString(), d]));
+            data = ids.map(id => byId.get(id.toString()) || null).filter(Boolean);
+        }
+
         res.json({ data, meta: { page, limit, total, totalPages } });
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -538,4 +571,4 @@ const toggleRsvp = async (req, res) => {
     }
 };
 
-module.exports = { createSport, getSports, getSport, updateSport, deleteSport, joinSport, requestToJoin, getRequests, approveRequest, rejectRequest, removeMember, activateMember, getAllSports, activateSport, getAllMembers, bulkUpdateSports, bulkAddMembers, setNextSession, toggleRsvp };
+module.exports = { createSport, getSports, getSport, updateSport, deleteSport, joinSport, requestToJoin, getRequests, getMyRequests, approveRequest, rejectRequest, removeMember, activateMember, getAllSports, activateSport, getAllMembers, bulkUpdateSports, bulkAddMembers, setNextSession, toggleRsvp };
