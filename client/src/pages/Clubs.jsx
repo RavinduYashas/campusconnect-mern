@@ -1,7 +1,19 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
+import ModuleAssistant from '../components/ModuleAssistant';
 import './Clubs.css';
+
+const getTodayMinDateTime = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const hours = String(today.getHours()).padStart(2, '0');
+    const minutes = String(today.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 
 // Live countdown timer component
 const CountdownTimer = ({ targetDate }) => {
@@ -410,6 +422,15 @@ const Clubs = () => {
                 </section>
             </main>
 
+            <ModuleAssistant
+                moduleName="clubs"
+                moduleTitle="Clubs"
+                items={clubs}
+                loading={loading}
+                anchorId="club-list"
+                onShowSchedules={() => setShowScheduleOverview(true)}
+            />
+
             {selectedClub && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[85vh] overflow-hidden shadow-2xl flex flex-col transform transition-all">
@@ -558,6 +579,7 @@ const Clubs = () => {
                                             <label className="block text-[10px] font-bold text-blue-700 uppercase mb-1 ml-1">Date & Time</label>
                                             <input 
                                                 type="datetime-local" 
+                                                min={getTodayMinDateTime()}
                                                 value={editDate}
                                                 onChange={(e) => setEditDate(e.target.value)}
                                                 className="w-full bg-white border border-blue-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-gray-700"

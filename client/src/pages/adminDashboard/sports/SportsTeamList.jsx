@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useToast } from '../../../context/ToastContext';
 import SportsTeamForm from './SportsTeamForm';
+import '../adminListTheme.css';
+
+const TrashIcon = () => (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
+        <path fill="currentColor" d="M9 3.75A1.75 1.75 0 0 0 7.25 5.5V6H4.75a.75.75 0 0 0 0 1.5h.76l.8 10.2A2.75 2.75 0 0 0 9.05 20h5.9a2.75 2.75 0 0 0 2.74-2.3l.8-10.2h.76a.75.75 0 0 0 0-1.5h-2.5v-.5A1.75 1.75 0 0 0 15 3.75H9Zm1.25 2.25v-.5c0-.138.112-.25.25-.25h3.5c.138 0 .25.112.25.25V6H10.25Zm-1.49 4.5a.75.75 0 0 1 .79.7l.5 6a.75.75 0 1 1-1.5.1l-.5-6a.75.75 0 0 1 .7-.8Zm5.48.7a.75.75 0 1 0-1.5-.1l-.5 6a.75.75 0 1 0 1.5.1l.5-6Z"/>
+    </svg>
+);
 
 const SportsTeamList = () => {
    const { showToast } = useToast();
@@ -220,6 +227,19 @@ const askConfirm = async (message) => window.confirm(message);
         } catch (err) { showToast(err.message || 'Failed', 'error'); }
     };
 
+    const handleDelete = async (team) => {
+        if (!confirm('Delete this team?')) return;
+        const token = localStorage.getItem('token');
+        try {
+            const id = team._id || team.id;
+            const res = await fetch(`/api/sports/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.message || 'Delete failed');
+            showToast(body.message || 'Deleted', 'success');
+            loadTeams();
+        } catch (err) { showToast(err.message || 'Delete failed', 'error'); }
+    };
+
     const openManage = async (team) => {
         setManaging(team);
         const id = team._id || team.id;
@@ -364,38 +384,37 @@ const askConfirm = async (message) => window.confirm(message);
     };
 
     return (
-        <div>
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold">Sports Management</h2>
-                <div className="flex items-center gap-2">
-                    <input value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setPage(1); }} placeholder="Search teams or member emails" className="input" />
-                    <select value={filterIsActive} onChange={e => { setFilterIsActive(e.target.value); setPage(1); }} className="input">
+        <div >
+            <div className="admin-list-header">
+                <h2 className="admin-list-title">Sports Management</h2>
+                <div className="admin-list-toolbar">
+                    <input value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setPage(1); }} placeholder="Search teams or member emails" className="input admin-filter-input" />
+                    <select value={filterIsActive} onChange={e => { setFilterIsActive(e.target.value); setPage(1); }} className="input admin-filter-input">
                         <option value="any">Any</option>
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
                     </select>
-                    <input type="number" min="0" value={minMembers} onChange={e => { setMinMembers(e.target.value); setPage(1); }} placeholder="Min members" className="input w-32" />
-                    <select value={limit} onChange={e => { setLimit(Number(e.target.value)); setPage(1); }} className="input w-32">
+                    <select value={limit} onChange={e => { setLimit(Number(e.target.value)); setPage(1); }} className="input admin-filter-input w-32">
                         <option value={6}>6</option>
                         <option value={12}>12</option>
                         <option value={24}>24</option>
                     </select>
-                    <button onClick={() => setShowScheduleOverview(true)} className="btn-outline flex items-center gap-2">
+                    <button onClick={() => setShowScheduleOverview(true)} className="btn-outline admin-btn flex items-center gap-2">
                         <span>📅</span> Schedules
                     </button>
-                    <button onClick={handleCreate} className="btn-primary">Create Team</button>
-                    <button onClick={loadAllMembers} className="btn-outline ml-2">All Members</button>
+                    <button onClick={handleCreate} className="btn-primary admin-btn">Create Team</button>
+                    <button onClick={loadAllMembers} className="btn-outline admin-btn">All Members</button>
                 </div>
             </div>
 
             {globalRequests.length > 0 && (
-                <div className="mb-6 bg-orange-50 p-6 rounded-2xl border border-orange-200 shadow-sm">
+                <div className="admin-requests-panel mb-6 p-6 shadow-sm">
                     <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-orange-900">
                         <span>⏳</span> Pending Join Requests
                     </h3>
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {globalRequests.map(r => (
-                            <div key={r._id} className="bg-white p-5 rounded-xl border border-orange-100 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                            <div key={r._id} className="admin-request-card p-5 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
                                 <div>
                                     <h4 className="font-bold text-gray-800 text-lg">{r.user?.name || 'Unknown User'}</h4>
                                     <p className="text-sm text-gray-500">{r.user?.email}</p>
@@ -424,75 +443,80 @@ const askConfirm = async (message) => window.confirm(message);
             )}
 
             {loading ? (
-                <div>Loading teams...</div>
+                <div className="text-text-secondary">Loading teams...</div>
             ) : (
                 <>
-                    <div className="mb-2 flex items-center justify-between">
+                    <div className="admin-bulk-bar mb-2 flex items-center justify-between gap-3 flex-wrap">
                         <div className="flex items-center gap-2">
                             <label className="flex items-center gap-2">
                                 <input type="checkbox" checked={selectedIds.length === teams.length && teams.length > 0} onChange={e => {
                                     if (e.target.checked) setSelectedIds(teams.map(t => t._id || t.id)); else setSelectedIds([]);
                                 }} /> Select All
                             </label>
-                            <button disabled={selectedIds.length === 0 || bulkLoading} onClick={() => handleBulkAction('activate')} className="btn-primary text-sm">Activate Selected</button>
-                            <button disabled={selectedIds.length === 0 || bulkLoading} onClick={() => handleBulkAction('deactivate')} className="btn-outline text-sm">Deactivate Selected</button>
+                            <button disabled={selectedIds.length === 0 || bulkLoading} onClick={() => handleBulkAction('activate')} className="btn-primary admin-btn text-sm">Activate Selected</button>
+                            <button disabled={selectedIds.length === 0 || bulkLoading} onClick={() => handleBulkAction('deactivate')} className="btn-outline admin-btn text-sm">Deactivate Selected</button>
                         </div>
                         <div className="text-sm text-text-secondary">Total: {total}</div>
                     </div>
 
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="admin-list-grid">
                         {teams.map((t) => (
-                            <div key={t._id || t.id} className="bg-white p-4 rounded-lg border shadow-sm">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex items-start gap-3">
+                            <div key={t._id || t.id} className="admin-list-card">
+                                <div className="admin-card-top">
+                                    <div className="flex items-start gap-3 min-w-0">
                                         <input type="checkbox" checked={selectedIds.includes(t._id || t.id)} onChange={e => {
                                             const realId = t._id || t.id;
                                             if (e.target.checked) setSelectedIds(prev => Array.from(new Set([...prev, realId])));
                                             else setSelectedIds(prev => prev.filter(x => x !== realId));
                                         }} />
-                                        <div>
-                                            <h3 className="font-bold">{t.name}</h3>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className="text-xs text-text-secondary">Coach: {t.coach || '—'}</span>
-                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm ${t.nextSession?.date ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                                                    {t.nextSession?.date ? `📅 ${new Date(t.nextSession.date).toLocaleDateString()}` : '⏳ Pending'}
+                                        <div className="min-w-0">
+                                            <h3 className="admin-card-title font-bold">{t.name}</h3>
+                                            <div className="admin-card-meta">
+                                                <span className="admin-card-pill">Coach: {t.coach || '—'}</span>
+                                                <span className={`admin-card-pill ${t.nextSession?.date ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'}`}>
+                                                    {t.nextSession?.date ? `📅 ${new Date(t.nextSession.date).toLocaleDateString()}` : '⏳ Pending session'}
                                                 </span>
+                                                {t.maxMembers ? <span className="admin-card-pill">Max: {t.maxMembers}</span> : null}
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => handleEdit(t)} className="text-sm btn-outline">Edit</button>
-                                        <button onClick={() => openManage(t)} className="text-sm btn-primary">Manage Members</button>
-                                    </div>
                                 </div>
-                                <p className="mt-3 text-text-secondary">{t.description}</p>
-                                <div className="mt-3 flex gap-2 justify-end items-center">
+                                <div className="admin-card-actions">
+                                    <button onClick={() => handleEdit(t)} className="text-sm btn-outline admin-btn">Edit</button>
+                                    <button onClick={() => openManage(t)} className="text-sm btn-primary admin-btn">Manage Members</button>
+                                </div>
+                                <p className="admin-card-description">{t.description}</p>
+                                <div className="mt-4 flex flex-wrap gap-2 justify-end items-center">
                                     {!t.isActive ? (
                                         <>
                                             <span className="text-xs text-text-secondary mr-2">Inactive</span>
-                                            <button onClick={() => activateTeam(t)} className="text-sm btn-primary">Activate</button>
+                                            <button onClick={() => activateTeam(t)} className="text-sm btn-primary admin-btn">Activate</button>
                                         </>
                                     ) : (
                                         <button onClick={() => handleDeactivate(t)} className="text-sm text-error">Deactivate</button>
                                     )}
+                                    <button onClick={() => handleDelete(t)} className="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-xl border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 transition-colors">
+                                        <TrashIcon />
+                                        Delete
+                                    </button>
                                 </div>
                             </div>
                         ))}
                     </div>
 
-                    <div className="mt-4 flex items-center justify-center gap-3">
-                        <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="btn-outline">Prev</button>
+                    <div className="admin-pagination mt-4 flex items-center justify-center gap-3 flex-wrap">
+                        <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="btn-outline admin-btn">Prev</button>
                         <div className="text-sm">Page {page} / {totalPages}</div>
-                        <button disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} className="btn-outline">Next</button>
+                        <button disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))} className="btn-outline admin-btn">Next</button>
                     </div>
                 </>
             )}
 
             {managing && (
-                <div className="mt-6 bg-white p-4 rounded-lg border">
-                    <div className="flex justify-between items-center">
+                <div className="admin-manage-panel mt-6 p-4">
+                    <div className="flex justify-between items-center gap-3 flex-wrap">
                         <h4 className="font-bold">Manage Members — {managing.name}</h4>
-                        <button onClick={() => { setManaging(null); setMembers([]); setRequests([]); }} className="btn-outline">Close</button>
+                        <button onClick={() => { setManaging(null); setMembers([]); setRequests([]); }} className="btn-outline admin-btn">Close</button>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-4 mt-4">
@@ -500,7 +524,7 @@ const askConfirm = async (message) => window.confirm(message);
                             <label className="block mb-2 font-semibold">Import Members (CSV)</label>
                             <div className="flex items-center gap-2">
                                 <input type="file" accept="text/csv" onChange={e => setCsvFile(e.target.files?.[0] || null)} />
-                                <button onClick={handleImportCsv} className="btn-primary">Import CSV</button>
+                                <button onClick={handleImportCsv} className="btn-primary admin-btn">Import CSV</button>
                                 <div className="text-xs text-text-secondary">CSV should contain an 'email' column or email in first column.</div>
                             </div>
                         </div>
@@ -534,7 +558,7 @@ const askConfirm = async (message) => window.confirm(message);
                                                 <div className="text-xs text-text-secondary">{m.email}</div>
                                             </div>
                                             <div>
-                                                <button onClick={() => activateMember(m._id)} className="text-sm btn-primary">Activate</button>
+                                                <button onClick={() => activateMember(m._id)} className="text-sm btn-primary admin-btn">Activate</button>
                                             </div>
                                         </li>
                                     ))}
@@ -555,8 +579,8 @@ const askConfirm = async (message) => window.confirm(message);
                                             </div>
                                             <div className="flex gap-2">
                                                 <div className="text-xs text-text-secondary mr-2">{r.status}</div>
-                                                <button onClick={() => approve(r._id)} className="btn-primary text-sm">Approve</button>
-                                                <button onClick={() => reject(r._id)} className="btn-outline text-sm">Reject</button>
+                                                <button onClick={() => approve(r._id)} className="btn-primary admin-btn text-sm">Approve</button>
+                                                <button onClick={() => reject(r._id)} className="btn-outline admin-btn text-sm">Reject</button>
                                             </div>
                                         </li>
                                     ))}
@@ -568,10 +592,10 @@ const askConfirm = async (message) => window.confirm(message);
             )}
 
             {showAllMembers && (
-                <div className="mt-6 bg-white p-4 rounded-lg border">
-                    <div className="flex justify-between items-center">
+                <div className="admin-all-members-panel mt-6 p-4">
+                    <div className="flex justify-between items-center gap-3 flex-wrap">
                         <h4 className="font-bold">All Team Members</h4>
-                        <button onClick={() => setShowAllMembers(false)} className="btn-outline">Close</button>
+                        <button onClick={() => setShowAllMembers(false)} className="btn-outline admin-btn">Close</button>
                     </div>
                     <div className="mt-4">
                         {allMembersError ? (
