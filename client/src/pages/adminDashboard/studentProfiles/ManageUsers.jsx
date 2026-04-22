@@ -4,12 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import AddUserModal from './AddUserModal';
 import EditUserModal from './EditUserModal';
+import AssignRepModal from './AssignRepModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ConfirmModal from '../../../components/ConfirmModal';
+import { useToast } from '../../../context/ToastContext';
 
 const ManageUsers = () => {
     const navigate = useNavigate();
+    const { showToast } = useToast();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -17,7 +20,9 @@ const ManageUsers = () => {
     const [activeTab, setActiveTab] = useState('student'); // Default to students
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isRepModalOpen, setIsRepModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
+    const [autoRepDetails, setAutoRepDetails] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [confirmModal, setConfirmModal] = useState({
         show: false,
@@ -75,7 +80,7 @@ const ManageUsers = () => {
             setUsers(users.filter(user => user._id !== confirmModal.id));
             setConfirmModal({ ...confirmModal, show: false });
         } catch (err) {
-            alert(err.response?.data?.message || 'Failed to delete user');
+            showToast(err.response?.data?.message || 'Failed to delete user', 'error');
             setConfirmModal({ ...confirmModal, show: false });
         }
     };
@@ -94,15 +99,76 @@ const ManageUsers = () => {
         setUsers(users.map(user => user._id === updatedUser._id ? { ...user, ...updatedUser } : user));
     };
 
+    const getAutoRepData = (user) => {
+        if (!user.academicInfo || !user.field) return null;
+
+        const facultyMap = {
+            'IT': 'Computing', 'SE': 'Computing', 'CS': 'Computing', 'DS': 'Computing',
+            'CY': 'Computing', 'IM': 'Computing', 'CN': 'Computing',
+            'EN': 'Engineering', 'ME': 'Engineering', 'EE': 'Engineering', 'CE': 'Engineering',
+            'BM': 'Business', 'BA': 'Business', 'MC': 'Business', 'AF': 'Business',
+            'HS': 'Humanities and Sciences', 'PY': 'Humanities and Sciences', 'ED': 'Humanities and Sciences',
+            'AR': 'Architecture'
+        };
+
+        const prefix = user.field.substring(0, 2).toUpperCase();
+        const faculty = facultyMap[prefix] || 'Other';
+        const academicYear = `Year ${user.academicInfo.year} Sem ${user.academicInfo.semester}`;
+
+        // Verify academicYear is in the valid list
+        const validYears = [
+            'Year 1 Sem 1', 'Year 1 Sem 2', 'Year 2 Sem 1', 'Year 2 Sem 2',
+            'Year 3 Sem 1', 'Year 3 Sem 2', 'Year 4 Sem 1', 'Year 4 Sem 2'
+        ];
+
+        if (!validYears.includes(academicYear)) return null;
+
+        return { faculty, academicYear };
+    };
+
     const handleToggleRep = async (user) => {
+        if (user.isBatchRep) {
+            setConfirmModal({
+                show: true,
+                title: 'Remove Batch Representative',
+                message: `Are you sure you want to remove ${user.name} from their batch representative role?`,
+                type: 'warning',
+                id: user._id,
+                action: 'toggle-rep'
+            });
+        } else {
+            const autoData = getAutoRepData(user);
+            setSelectedUser(user);
+            if (autoData) {
+                // If we have enough data, promote immediately
+                executeToggleRep(autoData, user._id);
+            } else {
+                // Fallback to modal if data is missing or invalid
+                setAutoRepDetails(null);
+                setIsRepModalOpen(true);
+            }
+        }
+    };
+
+    const executeToggleRep = async (repData = null, directUserId = null) => {
+        const userId = directUserId || (repData ? selectedUser._id : confirmModal.id);
         try {
             const token = localStorage.getItem('token');
-            const res = await axios.put(`/api/users/toggle-rep/${user._id}`, {}, {
+            const res = await axios.put(`/api/users/toggle-rep/${userId}`, repData || {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setUsers(users.map(u => u._id === user._id ? { ...u, isBatchRep: res.data.isBatchRep } : u));
+            
+            setUsers(users.map(u => u._id === userId ? { ...u, isBatchRep: res.data.isBatchRep, batchRepDetails: res.data.batchRepDetails } : u));
+            showToast(`Successfully ${res.data.isBatchRep ? 'promoted' : 'demoted'} ${res.data.name}`, 'success');
+            
+            setIsRepModalOpen(false);
+            setConfirmModal({ ...confirmModal, show: false });
         } catch (err) {
-            alert(err.response?.data?.message || 'Failed to update representative status');
+            // If direct attempt failed, maybe show modal?
+            showToast(err.response?.data?.message || 'Failed to update representative status', 'error');
+            if (directUserId && !repData) {
+                 setIsRepModalOpen(true);
+            }
         }
     };
 
@@ -434,8 +500,16 @@ const ManageUsers = () => {
                 title={confirmModal.title}
                 message={confirmModal.message}
                 type={confirmModal.type}
-                onConfirm={executeDelete}
+                onConfirm={confirmModal.action === 'toggle-rep' ? () => executeToggleRep() : executeDelete}
                 onCancel={() => setConfirmModal({ ...confirmModal, show: false })}
+            />
+
+            <AssignRepModal
+                isOpen={isRepModalOpen}
+                onClose={() => setIsRepModalOpen(false)}
+                onConfirm={executeToggleRep}
+                studentName={selectedUser?.name}
+                initialData={getAutoRepData(selectedUser || {})}
             />
         </div>
     );
