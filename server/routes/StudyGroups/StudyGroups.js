@@ -1,11 +1,10 @@
-// routes/StudyGroups/StudyGroups.js
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../../middleware/authMiddleware');
+const { roleAuthorize } = require('../../middleware/roleMiddleware');
 const multer = require('multer');
 const path = require('path');
 
-// Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/study-materials/');
@@ -26,19 +25,21 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: fileFilter
 });
 
 const {
   createStudyGroup,
   getAllStudyGroups,
+  getAllGroupsForAdmin,
   getMyStudyGroups,
   getPendingRequests,
   requestToJoin,
   handleJoinRequest,
   leaveGroup,
   deleteStudyGroup,
+  toggleGroupStatus,
   getStudyGroupDetails,
   addMeeting,
   addSession,
@@ -55,22 +56,22 @@ const {
   uploadStudyMaterial
 } = require('../../controllers/StudyGroups/StudyGroups');
 
-// Debug middleware
 router.use((req, res, next) => {
   console.log(`Study Group Route: ${req.method} ${req.originalUrl}`);
   next();
 });
 
-// DEBUG ROUTE - Add this endpoint
+// ========== ADMIN ROUTES ==========
+router.get('/admin/all', protect, roleAuthorize('admin'), getAllGroupsForAdmin);
+router.put('/admin/:groupId/toggle-status', protect, roleAuthorize('admin'), toggleGroupStatus);
+
+// ========== PUBLIC/DEBUG ROUTES ==========
 router.get('/debug/all', protect, async (req, res) => {
   try {
     const StudyGroup = require('../../models/StudyGroups/StudyGroups');
     const allGroups = await StudyGroup.find({})
       .populate('owner', 'name avatar')
       .populate('members.user', 'name avatar');
-    
-    console.log('\n=== 🔍 DEBUG - All groups in database ===');
-    console.log(`Total groups: ${allGroups.length}`);
     
     const groupsData = allGroups.map(g => ({
       id: g._id,
@@ -83,22 +84,16 @@ router.get('/debug/all', protect, async (req, res) => {
       owner: g.owner ? g.owner.name : 'Unknown'
     }));
     
-    console.log('Groups:', groupsData);
-    res.json({ 
-      total: allGroups.length,
-      groups: groupsData
-    });
+    res.json({ total: allGroups.length, groups: groupsData });
   } catch (error) {
-    console.error('Debug error:', error);
     res.status(500).json({ message: error.message });
   }
 });
 
-// Add a simple test endpoint without authentication for testing
 router.get('/public/all', async (req, res) => {
   try {
     const StudyGroup = require('../../models/StudyGroups/StudyGroups');
-    const allGroups = await StudyGroup.find({})
+    const allGroups = await StudyGroup.find({ isActive: true })
       .populate('owner', 'name avatar')
       .limit(10);
     
@@ -111,7 +106,7 @@ router.get('/public/all', async (req, res) => {
         type: g.type,
         faculty: g.faculty,
         isActive: g.isActive,
-        memberCount: g.members.length
+        memberCount: g.members.filter(m => m.status === 'approved').length
       }))
     });
   } catch (error) {
@@ -119,6 +114,7 @@ router.get('/public/all', async (req, res) => {
   }
 });
 
+// ========== MAIN ROUTES ==========
 router.route('/')
   .get(protect, getAllStudyGroups)
   .post(protect, createStudyGroup);
@@ -132,25 +128,20 @@ router.delete('/:groupId/leave', protect, leaveGroup);
 router.delete('/:groupId', protect, deleteStudyGroup);
 router.get('/:groupId', protect, getStudyGroupDetails);
 
-// Study Materials routes
 router.post('/:groupId/materials', protect, upload.single('file'), uploadStudyMaterial);
 router.delete('/:groupId/materials/:materialId', protect, deleteStudyMaterial);
 
-// Study Sessions routes
 router.post('/:groupId/sessions', protect, addStudySession);
 router.delete('/:groupId/sessions/:sessionId', protect, deleteStudySession);
 
-// Session Requests routes
 router.post('/:groupId/session-requests', protect, requestStudySession);
 router.get('/:groupId/session-requests', protect, getSessionRequests);
 router.put('/:groupId/session-requests/:requestId/approve', protect, approveSessionRequest);
 router.delete('/:groupId/session-requests/:requestId', protect, rejectSessionRequest);
 
-// Chat routes
 router.post('/:groupId/messages', protect, sendMessage);
 router.get('/:groupId/messages', protect, getMessages);
 
-// Keep old routes for compatibility
 router.post('/:groupId/meetings', protect, addMeeting);
 router.post('/:groupId/sessions', protect, addSession);
 

@@ -64,10 +64,10 @@ app.get('/', (req, res) => {
     res.send('API is running...');
 });
 
-// ========== API ROUTES ==========
+// ========== API ROUTES - REGISTER ONCE ONLY ==========
 app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/clubs', require('./routes/clubRoutes'));
-app.use('/api/sports', require('./routes/sportRoutes'));
+app.use('/api/clubs', require('./routes/SportsandClubs/clubRoutes'));
+app.use('/api/sports', require('./routes/SportsandClubs/sportRoutes'));
 app.use('/api/qa', require('./routes/QA/qaRoutes'));
 app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
 app.use('/api/study-groups', require('./routes/StudyGroups/StudyGroups'));
@@ -79,7 +79,7 @@ app.get('/api/test', (req, res) => {
     res.json({ message: 'API is working!', timestamp: new Date().toISOString() });
 });
 
-// ========== CATCH-ALL FOR UNKNOWN API ROUTES - THIS MUST BE LAST ==========
+// ========== CATCH-ALL FOR UNKNOWN API ROUTES ==========
 app.use('/api', (req, res) => {
     res.status(404).json({ message: `API route not found: ${req.method} ${req.originalUrl}` });
 });
@@ -120,10 +120,6 @@ const listRoutes = () => {
     }
 };
 
-listRoutes();
-
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 // Connect to Database and start server
 connectDB().then(() => {
     console.log('Database connected, initializing services...');
@@ -132,21 +128,14 @@ connectDB().then(() => {
     createAdmin();
     seedGroups();
 
-    // Routes
-    app.use('/api/users', require('./routes/userRoutes'));
-    app.use('/api/sports', require('./routes/SportsandClubs/sportRoutes'));
-    app.use('/api/clubs', require('./routes/SportsandClubs/clubRoutes'));
-    app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
-    app.use('/api/qa', require('./routes/QA/qaRoutes'));
-
-    // Catch-all for unknown /api routes
-    app.use('/api', (req, res) => {
-        res.status(404).json({ message: `API route not found: ${req.method} ${req.originalUrl}` });
-    });
-
-    // Server listening
+    // REMOVED DUPLICATE ROUTE REGISTRATIONS HERE
+    
+    // Server listening - ONLY ONCE
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    
+    // Call listRoutes AFTER server is set up
+    setTimeout(listRoutes, 1000);
 }).catch(err => {
     console.error('Failed to connect to MongoDB:', err.message);
     process.exit(1);

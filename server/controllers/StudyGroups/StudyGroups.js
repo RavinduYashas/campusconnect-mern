@@ -1,4 +1,3 @@
-// controllers/StudyGroups/StudyGroups.js
 const StudyGroup = require('../../models/StudyGroups/StudyGroups');
 const User = require('../../models/User');
 
@@ -45,17 +44,6 @@ const createStudyGroup = async (req, res) => {
     });
 
     console.log('✅ Study group created:', studyGroup._id);
-    console.log('📊 Group details:', {
-      id: studyGroup._id,
-      name: studyGroup.name,
-      isActive: studyGroup.isActive,
-      createdAt: studyGroup.createdAt
-    });
-    
-    // Verify it was saved
-    const verifyGroup = await StudyGroup.findById(studyGroup._id);
-    console.log('✅ Verification - Group found in DB:', !!verifyGroup);
-    
     res.status(201).json(studyGroup);
   } catch (error) {
     console.error('❌ Error creating study group:', error);
@@ -63,71 +51,52 @@ const createStudyGroup = async (req, res) => {
   }
 };
 
-// @desc    Get all study groups with filtering
+// @desc    Get all study groups with filtering (Admin sees all, users see only accessible)
 // @route   GET /api/study-groups
 // @access  Private
 const getAllStudyGroups = async (req, res) => {
   try {
     const { faculty, type, academicYear, search } = req.query;
-    let filter = { isActive: true };
+    let filter = {};
 
     console.log('\n=== 🔍 GET ALL STUDY GROUPS ===');
-    console.log('📥 Query params:', { faculty, type, academicYear, search });
-    console.log('👤 User ID:', req.user.id);
-    console.log('🔑 User role:', req.user.role);
+    console.log('👤 User role:', req.user.role);
+
+    // If NOT admin, only show accessible groups
+    if (req.user.role !== 'admin') {
+      filter = {
+        $or: [
+          { type: 'open', isActive: true },
+          { 'members.user': req.user.id, 'members.status': 'approved' },
+          { owner: req.user.id }
+        ]
+      };
+    }
 
     if (faculty && faculty !== 'all') {
       filter.faculty = faculty;
-      console.log('✓ Applied faculty filter:', faculty);
     }
 
     if (type && type !== 'all') {
       filter.type = type;
-      console.log('✓ Applied type filter:', type);
     }
 
     if (academicYear && academicYear !== 'all') {
       filter.academicYear = academicYear;
-      console.log('✓ Applied academic year filter:', academicYear);
     }
     
     if (search && search.trim() !== '') {
       const searchTerm = search.trim();
-      console.log('🔎 Applying search filter for:', searchTerm);
       filter.$or = [
         { name: { $regex: searchTerm, $options: 'i' } },
         { description: { $regex: searchTerm, $options: 'i' } }
       ];
     }
 
-    console.log('📊 Final filter:', JSON.stringify(filter, null, 2));
-
     const studyGroups = await StudyGroup.find(filter)
       .populate('owner', 'name avatar')
       .populate('members.user', 'name avatar')
       .sort('-createdAt');
-
-    console.log(`📊 Found ${studyGroups.length} group(s) matching criteria`);
-    
-    // Log the first few groups to see what's being returned
-    if (studyGroups.length > 0) {
-      console.log('📋 First few groups:');
-      studyGroups.slice(0, 3).forEach(group => {
-        console.log(`   - ${group.name} (${group._id}) - Active: ${group.isActive}`);
-      });
-    } else {
-      // If no groups found, check if there are ANY groups in the database
-      const allGroups = await StudyGroup.find({});
-      console.log(`⚠️ No groups with filter. Total groups in DB: ${allGroups.length}`);
-      if (allGroups.length > 0) {
-        console.log('📋 All groups in DB (without filter):');
-        allGroups.forEach(group => {
-          console.log(`   - ${group.name} (Active: ${group.isActive}, Type: ${group.type}, Faculty: ${group.faculty})`);
-        });
-      } else {
-        console.log('📋 No study groups exist in the database at all!');
-      }
-    }
 
     const groupsWithDetails = studyGroups.map(group => {
       const userMembership = group.members.find(m => 
@@ -136,7 +105,8 @@ const getAllStudyGroups = async (req, res) => {
       return {
         ...group.toObject(),
         memberCount: group.members.filter(m => m.status === 'approved').length,
-        userStatus: userMembership ? userMembership.status : null
+        userStatus: userMembership ? userMembership.status : null,
+        isOwner: group.owner && group.owner._id && group.owner._id.toString() === req.user.id
       };
     });
 
@@ -147,14 +117,56 @@ const getAllStudyGroups = async (req, res) => {
   }
 };
 
+// @desc    Get ALL groups for admin (with full details)
+// @route   GET /api/study-groups/admin/all
+// @access  Private (Admin only)
+const getAllGroupsForAdmin = async (req, res) => {
+  try {
+    console.log('\n=== 👑 ADMIN GET ALL GROUPS ===');
+    
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const groups = await StudyGroup.find({})
+      .populate('owner', 'name email avatar')
+      .populate('members.user', 'name email avatar')
+      .sort({ createdAt: -1 });
+
+    console.log(`📊 Found ${groups.length} total groups in database`);
+
+    const formattedGroups = groups.map(group => ({
+      id: group._id,
+      name: group.name,
+      description: group.description,
+      type: group.type,
+      faculty: group.faculty,
+      academicYear: group.academicYear,
+      isActive: group.isActive,
+      memberCount: group.members.filter(m => m.status === 'approved').length,
+      owner: group.owner?.name || 'Unknown',
+      ownerEmail: group.owner?.email,
+      ownerId: group.owner?._id,
+      createdAt: group.createdAt,
+      totalMembers: group.members.length,
+      pendingMembers: group.members.filter(m => m.status === 'pending').length
+    }));
+
+    res.json({
+      total: groups.length,
+      groups: formattedGroups
+    });
+  } catch (error) {
+    console.error('❌ Error in getAllGroupsForAdmin:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Get user's study groups
 // @route   GET /api/study-groups/my-groups
 // @access  Private
 const getMyStudyGroups = async (req, res) => {
   try {
-    console.log('\n=== 🔍 GET MY STUDY GROUPS ===');
-    console.log('👤 User ID:', req.user.id);
-    
     const studyGroups = await StudyGroup.find({
       'members.user': req.user.id,
       'members.status': 'approved'
@@ -162,8 +174,6 @@ const getMyStudyGroups = async (req, res) => {
       .populate('owner', 'name avatar')
       .populate('members.user', 'name avatar')
       .sort('-updatedAt');
-
-    console.log(`📊 Found ${studyGroups.length} groups for user`);
 
     const groupsWithDetails = studyGroups.map(group => ({
       ...group.toObject(),
@@ -365,9 +375,9 @@ const leaveGroup = async (req, res) => {
   }
 };
 
-// @desc    Delete study group
+// @desc    Delete study group (Admin can delete any group)
 // @route   DELETE /api/study-groups/:groupId
-// @access  Private (Owner only)
+// @access  Private (Owner or Admin)
 const deleteStudyGroup = async (req, res) => {
   try {
     const studyGroup = await StudyGroup.findById(req.params.groupId);
@@ -376,14 +386,45 @@ const deleteStudyGroup = async (req, res) => {
       return res.status(404).json({ message: 'Study group not found' });
     }
 
-    if (studyGroup.owner.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'Only group owner can delete the group' });
+    // Allow admin to delete any group, or owner to delete their own
+    if (studyGroup.owner.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Only group owner or admin can delete the group' });
     }
 
+    const groupName = studyGroup.name;
     await studyGroup.deleteOne();
+    
+    console.log(`🗑️ Group "${groupName}" deleted by ${req.user.role}: ${req.user.id}`);
     res.json({ message: 'Study group deleted successfully' });
   } catch (error) {
     console.error('❌ Error deleting group:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Toggle group active status (Admin only)
+// @route   PUT /api/study-groups/admin/:groupId/toggle-status
+// @access  Private (Admin only)
+const toggleGroupStatus = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin only.' });
+    }
+
+    const studyGroup = await StudyGroup.findById(req.params.groupId);
+    if (!studyGroup) {
+      return res.status(404).json({ message: 'Study group not found' });
+    }
+
+    studyGroup.isActive = !studyGroup.isActive;
+    await studyGroup.save();
+
+    res.json({ 
+      message: `Group ${studyGroup.isActive ? 'activated' : 'deactivated'} successfully`,
+      isActive: studyGroup.isActive 
+    });
+  } catch (error) {
+    console.error('Error toggling group status:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -440,7 +481,7 @@ const uploadStudyMaterial = async (req, res) => {
       m => m.user.toString() === req.user.id && m.status === 'approved'
     );
 
-    if (!isMember && studyGroup.owner.toString() !== req.user.id) {
+    if (!isMember && studyGroup.owner.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Only group members can add study materials' });
     }
 
@@ -450,7 +491,6 @@ const uploadStudyMaterial = async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    // Save file info
     const fileUrl = `/uploads/study-materials/${req.file.filename}`;
 
     studyGroup.studyMaterials.push({
@@ -492,7 +532,7 @@ const addStudyMaterial = async (req, res) => {
       m => m.user.toString() === req.user.id && m.status === 'approved'
     );
 
-    if (!isMember && studyGroup.owner.toString() !== req.user.id) {
+    if (!isMember && studyGroup.owner.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Only group members can add study materials' });
     }
 
@@ -519,7 +559,7 @@ const addStudyMaterial = async (req, res) => {
 
 // @desc    Delete study material
 // @route   DELETE /api/study-groups/:groupId/materials/:materialId
-// @access  Private (Uploader or owner)
+// @access  Private (Uploader, owner, or admin)
 const deleteStudyMaterial = async (req, res) => {
   const { groupId, materialId } = req.params;
 
@@ -540,7 +580,9 @@ const deleteStudyMaterial = async (req, res) => {
 
     const material = studyGroup.studyMaterials[materialIndex];
     
-    if (material.uploadedBy.toString() !== req.user.id && studyGroup.owner.toString() !== req.user.id) {
+    if (material.uploadedBy.toString() !== req.user.id && 
+        studyGroup.owner.toString() !== req.user.id && 
+        req.user.role !== 'admin') {
       return res.status(403).json({ message: 'You can only delete your own materials' });
     }
 
@@ -573,7 +615,7 @@ const addStudySession = async (req, res) => {
       m => m.user.toString() === req.user.id && m.status === 'approved'
     );
 
-    if (!isMember && studyGroup.owner.toString() !== req.user.id) {
+    if (!isMember && studyGroup.owner.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Only group members can add study sessions' });
     }
 
@@ -600,7 +642,7 @@ const addStudySession = async (req, res) => {
 
 // @desc    Delete study session
 // @route   DELETE /api/study-groups/:groupId/sessions/:sessionId
-// @access  Private (Creator or owner)
+// @access  Private (Creator, owner, or admin)
 const deleteStudySession = async (req, res) => {
   const { groupId, sessionId } = req.params;
 
@@ -621,7 +663,9 @@ const deleteStudySession = async (req, res) => {
 
     const session = studyGroup.studySessions[sessionIndex];
     
-    if (session.createdBy.toString() !== req.user.id && studyGroup.owner.toString() !== req.user.id) {
+    if (session.createdBy.toString() !== req.user.id && 
+        studyGroup.owner.toString() !== req.user.id && 
+        req.user.role !== 'admin') {
       return res.status(403).json({ message: 'You can only delete your own sessions' });
     }
 
@@ -696,7 +740,7 @@ const getSessionRequests = async (req, res) => {
       return res.status(404).json({ message: 'Study group not found' });
     }
 
-    if (studyGroup.owner.toString() !== req.user.id) {
+    if (studyGroup.owner.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Only group owner can view session requests' });
     }
 
@@ -722,7 +766,7 @@ const approveSessionRequest = async (req, res) => {
       return res.status(404).json({ message: 'Study group not found' });
     }
 
-    if (studyGroup.owner.toString() !== req.user.id) {
+    if (studyGroup.owner.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Only group owner can approve requests' });
     }
 
@@ -736,7 +780,6 @@ const approveSessionRequest = async (req, res) => {
 
     const request = studyGroup.sessionRequests[requestIndex];
     
-    // Automatically create a study session from the request
     studyGroup.studySessions.push({
       title: request.title,
       description: request.description,
@@ -747,10 +790,7 @@ const approveSessionRequest = async (req, res) => {
       createdBy: req.user.id
     });
 
-    // Mark request as approved
     studyGroup.sessionRequests[requestIndex].status = 'approved';
-    studyGroup.sessionRequests[requestIndex].approvedAt = new Date();
-
     await studyGroup.save();
     
     res.json({ message: 'Session request approved and session created' });
@@ -771,7 +811,7 @@ const rejectSessionRequest = async (req, res) => {
       return res.status(404).json({ message: 'Study group not found' });
     }
 
-    if (studyGroup.owner.toString() !== req.user.id) {
+    if (studyGroup.owner.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Only group owner can reject requests' });
     }
 
@@ -850,7 +890,7 @@ const getMessages = async (req, res) => {
       m => m.user.toString() === req.user.id && m.status === 'approved'
     );
 
-    if (!isMember && studyGroup.owner.toString() !== req.user.id) {
+    if (!isMember && studyGroup.owner.toString() !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'Only group members can view messages' });
     }
 
@@ -863,7 +903,6 @@ const getMessages = async (req, res) => {
 
 // ========== COMPATIBILITY FUNCTIONS ==========
 
-// Placeholder functions for backward compatibility
 const addMeeting = async (req, res) => {
   res.json({ message: 'Add meeting - use study sessions instead' });
 };
@@ -875,37 +914,28 @@ const addSession = async (req, res) => {
 // ========== EXPORT ALL FUNCTIONS ==========
 
 module.exports = {
-  // Group management
   createStudyGroup,
   getAllStudyGroups,
+  getAllGroupsForAdmin,
   getMyStudyGroups,
   getPendingRequests,
   requestToJoin,
   handleJoinRequest,
   leaveGroup,
   deleteStudyGroup,
+  toggleGroupStatus,
   getStudyGroupDetails,
-  
-  // Study materials
   addStudyMaterial,
   deleteStudyMaterial,
   uploadStudyMaterial,
-  
-  // Study sessions
   addStudySession,
   deleteStudySession,
-  
-  // Session requests
   requestStudySession,
   getSessionRequests,
   approveSessionRequest,
   rejectSessionRequest,
-  
-  // Chat
   sendMessage,
   getMessages,
-  
-  // Compatibility
   addMeeting,
   addSession
 };

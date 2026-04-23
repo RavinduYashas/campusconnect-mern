@@ -1,14 +1,30 @@
+import { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const AdminSidebar = () => {
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const IconWrapper = ({ children, isActive }) => (
-        <span className={`w-5 h-5 transition-transform duration-300 group-hover:scale-110 ${isActive ? 'text-white' : 'text-[#EA580C]'}`}>
+        <span className={`w-5 h-5 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 ${isActive ? 'text-white' : 'text-[#EA580C]'}`}>
             {children}
         </span>
     );
 
-    const navItems = [
+    // Main nav items (without Groups & Workshops)
+    const mainNavItems = [
         {
             title: 'Dashboard',
             path: '/admin/dashboard',
@@ -38,17 +54,6 @@ const AdminSidebar = () => {
                 <IconWrapper isActive={active}>
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                </IconWrapper>
-            )
-        },
-        {
-            title: 'Groups & Workshops',
-            path: '/admin/study-groups',
-            icon: (active) => (
-                <IconWrapper isActive={active}>
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                 </IconWrapper>
             )
@@ -100,57 +105,184 @@ const AdminSidebar = () => {
         },
     ];
 
+    // Dropdown items for Groups & Workshops
+    const dropdownItems = [
+        {
+            title: 'Study Groups',
+            path: '/StudyGroups/AdminStudyGroups',
+            icon: (active) => (
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            )
+        },
+        {
+            title: 'Workshops',
+            path: '/Workshops/AdminWorkshops',
+            icon: (active) => (
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z" />
+                </svg>
+            )
+        }
+    ];
+
     return (
-        <aside className="fixed left-0 top-[72px] h-[calc(100vh-72px)] w-60 bg-white border-r border-gray-100 shadow-xl overflow-hidden z-40 hidden md:block">
+        <aside className="fixed left-0 top-[72px] h-[calc(100vh-72px)] w-60 bg-gradient-to-b from-white via-white to-gray-50 border-r border-gray-100 shadow-2xl overflow-hidden z-40 hidden md:block">
             <div className="flex flex-col h-full py-6 px-3">
                 {/* Logo / Title */}
-                <div className="mb-5 px-3">
-                    <p className="text-xl font-bold bg-gradient-to-r from-primary to-primary-light bg-clip-text text-transparent">
+                <motion.div 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="mb-8 px-3"
+                >
+                    <p className="text-xl font-bold bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">
                         CampusAdmin
                     </p>
                     <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest mt-0.5">Control Center</p>
-                </div>
+                </motion.div>
 
                 {/* Navigation Links */}
-                <nav className="flex-grow space-y-2">
-                    {navItems.map((item) => (
-                        <NavLink
+                <nav className="flex-grow space-y-1.5 overflow-y-auto custom-scrollbar">
+                    {mainNavItems.map((item, index) => (
+                        <motion.div
                             key={item.path}
-                            to={item.path}
-                            className={({ isActive }) =>
-                                `flex items-center gap-3 px-3 py-1.5 rounded-xl transition-all duration-300 group ${isActive
-                                    ? 'bg-primary text-white shadow-md shadow-primary/20'
-                                    : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
-                                }`
-                            }
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.03 }}
                         >
-                            {({ isActive }) => (
-                                <>
-                                    {item.icon(isActive)}
-                                    <span className="text-sm font-semibold">{item.title}</span>
+                            <NavLink
+                                to={item.path}
+                                className={({ isActive }) =>
+                                    `relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 group overflow-hidden ${
+                                        isActive
+                                            ? 'bg-gradient-to-r from-primary to-primary-dark text-white shadow-lg shadow-primary/20'
+                                            : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
+                                    }`
+                                }
+                            >
+                                {({ isActive }) => (
+                                    <>
+                                        {/* Animated background shine */}
+                                        {isActive && (
+                                            <motion.div 
+                                                initial={{ x: '-100%' }}
+                                                animate={{ x: '100%' }}
+                                                transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                                                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                                            />
+                                        )}
+                                        
+                                        {item.icon(isActive)}
+                                        <span className="text-sm font-semibold">{item.title}</span>
 
-                                    {/* Simple Active Indicator Dot */}
-                                    <div
-                                        className={`ml-auto w-1.5 h-1.5 rounded-full bg-white transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-0'}`}
-                                    />
-                                </>
-                            )}
-                        </NavLink>
+                                        {/* Active Indicator Dot */}
+                                        <motion.div
+                                            initial={{ scale: 0 }}
+                                            animate={{ scale: isActive ? 1 : 0 }}
+                                            className={`ml-auto w-1.5 h-1.5 rounded-full ${isActive ? 'bg-white' : 'bg-primary'}`}
+                                        />
+                                    </>
+                                )}
+                            </NavLink>
+                        </motion.div>
                     ))}
+
+                    {/* Dropdown for Groups & Workshops */}
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: mainNavItems.length * 0.03 }}
+                        className="relative"
+                        ref={dropdownRef}
+                    >
+                        <button
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                            className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 group ${
+                                isDropdownOpen 
+                                    ? 'bg-primary/10 text-primary' 
+                                    : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
+                            }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <span className="w-5 h-5 transition-transform duration-300 group-hover:scale-110">
+                                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                </span>
+                                <span className="text-sm font-semibold">Groups & Workshops</span>
+                            </div>
+                            <motion.svg
+                                animate={{ rotate: isDropdownOpen ? 180 : 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </motion.svg>
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        <AnimatePresence>
+                            {isDropdownOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0, y: -10 }}
+                                    animate={{ opacity: 1, height: 'auto', y: 0 }}
+                                    exit={{ opacity: 0, height: 0, y: -10 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="ml-6 mt-1 space-y-1 overflow-hidden"
+                                >
+                                    {dropdownItems.map((item, idx) => (
+                                        <NavLink
+                                            key={item.path}
+                                            to={item.path}
+                                            onClick={() => setIsDropdownOpen(false)}
+                                            className={({ isActive }) =>
+                                                `flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-300 group ${
+                                                    isActive
+                                                        ? 'bg-gradient-to-r from-primary to-primary-dark text-white'
+                                                        : 'text-text-secondary hover:bg-primary/5 hover:text-primary'
+                                                }`
+                                            }
+                                        >
+                                            {({ isActive }) => (
+                                                <>
+                                                    <span className={`w-4 h-4 transition-transform duration-300 group-hover:scale-110 ${isActive ? 'text-white' : 'text-primary'}`}>
+                                                        {item.icon(isActive)}
+                                                    </span>
+                                                    <span className="text-xs font-medium">{item.title}</span>
+                                                </>
+                                            )}
+                                        </NavLink>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </motion.div>
                 </nav>
 
                 {/* Bottom Profile / Quick Info */}
-                <div className="mt-auto pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-2 px-1">
-                        <div className="w-8 h-8 rounded-full bg-primary-light/10 flex items-center justify-center text-primary font-bold text-xs">
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="mt-auto pt-4 border-t border-gray-200"
+                >
+                    <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-gradient-to-r from-gray-50 to-white">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center text-white font-bold text-xs shadow-md">
                             A
                         </div>
                         <div className="overflow-hidden">
                             <p className="text-sm font-bold text-text-main truncate">Admin User</p>
-                            <p className="text-xs text-text-muted truncate">System Administrator</p>
+                            <p className="text-xs text-text-muted truncate flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                System Administrator
+                            </p>
                         </div>
                     </div>
-                </div>
+                </motion.div>
             </div>
         </aside>
     );

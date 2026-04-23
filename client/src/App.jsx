@@ -25,7 +25,8 @@ import ClientLayout from './components/ClientLayout';
 import BatchRepManagement from './pages/adminDashboard/BatchRepManagement';
 import BatchRepDashboard from './pages/BatchRepDashboard';
 import WorkshopDetails from './pages/Workshops/WorkshopDetails';
-
+import AdminWorkshops from './pages/Workshops/AdminWorkshops';
+import AdminStudyGroups from './pages/StudyGroups/AdminStudyGroups';
 
 
 
@@ -65,6 +66,8 @@ function App() {
           <Route path="batch-reps" element={<BatchRepManagement />} />
           <Route path="/batch-rep-dashboard" element={<BatchRepDashboard />} />
           <Route path="/workshops/:id" element={<WorkshopDetails />} />
+          <Route path="/Workshops/AdminWorkshops" element={<AdminWorkshops />} />
+          <Route path="/StudyGroups/AdminStudyGroups" element={<AdminStudyGroups />} />
 
 
 
