@@ -124,7 +124,7 @@ const updateSport = async (req, res) => {
     }
 };
 
-// Deactivate sport
+// Delete sport (permanently)
 const deleteSport = async (req, res) => {
     try {
         const sport = await Sport.findById(req.params.id);
@@ -132,9 +132,16 @@ const deleteSport = async (req, res) => {
         if (req.user.role !== 'admin' && (!sport.createdBy || sport.createdBy.toString() !== req.user._id.toString())) {
             return res.status(403).json({ message: 'Not authorized' });
         }
-        sport.isActive = false;
-        await sport.save();
-        res.json({ message: 'Deactivated' });
+
+        // Permanently remove sport
+        await Sport.findByIdAndDelete(sport._id);
+
+        // Clean up related sport requests
+        if (typeof SportRequest !== 'undefined') {
+            await SportRequest.deleteMany({ sport: sport._id }).catch(() => {});
+        }
+
+        res.json({ message: 'Sport deleted' });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
