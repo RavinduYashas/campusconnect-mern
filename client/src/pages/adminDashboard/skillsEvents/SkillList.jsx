@@ -3,7 +3,7 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 const SkillList = () => {
     const navigate = useNavigate();
@@ -85,15 +85,15 @@ const SkillList = () => {
         filteredSkills.forEach(skill => {
             const creatorName = skill.createdBy ? `${skill.createdBy.firstName || ''} ${skill.createdBy.lastName || ''}`.trim() || 'Unknown' : 'Unknown';
             const skillData = [
-                skill.title || 'N/A',
-                skill.category || 'N/A',
-                skill.type || 'N/A',
-                creatorName
+                String(skill.title || 'N/A'),
+                String(skill.category || 'N/A'),
+                String(skill.type || 'N/A'),
+                String(creatorName)
             ];
             tableRows.push(skillData);
         });
 
-        doc.autoTable({
+        autoTable(doc, {
             head: [tableColumn],
             body: tableRows,
             startY: 35,
