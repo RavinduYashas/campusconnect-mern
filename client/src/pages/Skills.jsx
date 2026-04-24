@@ -1,271 +1,461 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 const Skills = () => {
+    const navigate = useNavigate();
+    const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')));
+    const [activeTab, setActiveTab] = useState('requests'); // 'requests' or 'offers'
+    const [requests, setRequests] = useState([]);
     const [skills, setSkills] = useState([]);
     const [loading, setLoading] = useState(true);
-<<<<<<< HEAD
-    const [error, setError] = useState('');
-    const [filter, setFilter] = useState('all'); // 'all', 'offer', 'request'
+    const [message, setMessage] = useState('');
+    const [skillSearch, setSkillSearch] = useState('');
 
-    // Handle both 'user' and 'userInfo' local storage formats
-    const userInfo = JSON.parse(localStorage.getItem('user')) || JSON.parse(localStorage.getItem('userInfo'));
-    const currentUserId = userInfo ? userInfo._id : null;
-=======
-    const [error, setError] = useState(null);
+    // Modals state
+    const [showRequestModal, setShowRequestModal] = useState(false);
+    const [showSkillModal, setShowSkillModal] = useState(false);
+    const [showReplyModal, setShowReplyModal] = useState(null); // stores the request object to reply to
+    
+    // Edit state
+    const [editingRequest, setEditingRequest] = useState(null);
+    const [editingSkill, setEditingSkill] = useState(null);
 
-    const [isDeleting, setIsDeleting] = useState(null);
-    const user = JSON.parse(localStorage.getItem('user'));
->>>>>>> 9b0a3de (feat: complete peer skill exchange and admin dashboard, security: untrack .env)
+    // Form data
+    const [requestForm, setRequestForm] = useState({ title: '', description: '', skillsNeeded: '' });
+    const [skillForm, setSkillForm] = useState({ title: '', description: '', skillsOffered: '' });
+    const [replyForm, setReplyForm] = useState({ message: '' });
 
     useEffect(() => {
+        fetchRequests();
         fetchSkills();
     }, []);
 
+    const fetchRequests = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get('/api/skills/requests', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setRequests(res.data);
+            setLoading(false);
+        } catch (error) {
+            console.error("Error fetching requests:", error);
+            setLoading(false);
+        }
+    };
+
     const fetchSkills = async () => {
         try {
-<<<<<<< HEAD
-            const { data } = await axios.get('http://localhost:5000/api/peer-skills');
-            setSkills(data);
-            setLoading(false);
-        } catch (err) {
-            setError(err.response?.data?.message || 'Failed to fetch skills');
-=======
-            const res = await axios.get('http://localhost:5000/api/peer-skills');
+            const token = localStorage.getItem('token');
+            const res = await axios.get('/api/skills/offers', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             setSkills(res.data);
-            setLoading(false);
-        } catch (err) {
-            console.error(err);
-            const msg = err.response?.data?.details || err.response?.data?.message || err.message;
-            setError(`Server Connection Problem: ${msg}. If you are on a mobile hotspot, please turn on a VPN.`);
->>>>>>> 9b0a3de (feat: complete peer skill exchange and admin dashboard, security: untrack .env)
-            setLoading(false);
+        } catch (error) {
+            console.error("Error fetching skills:", error);
         }
     };
 
-    const handleDelete = async (id) => {
-<<<<<<< HEAD
-        if (window.confirm('Are you sure you want to delete this listing?')) {
-            try {
-                const config = {
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem('token')}`,
-                    },
-                };
-                await axios.delete(`http://localhost:5000/api/peer-skills/${id}`, config);
-                setSkills(skills.filter((skill) => skill._id !== id));
-            } catch (err) {
-                alert(err.response?.data?.message || 'Failed to delete listing');
+    const handleCreateOrUpdateRequest = async (e) => {
+        e.preventDefault();
+        try {
+            const token = localStorage.getItem('token');
+            const skillsArray = requestForm.skillsNeeded.split(',').map(s => s.trim());
+            
+            if (editingRequest) {
+                await axios.put(`/api/skills/requests/${editingRequest._id}`, {
+                    ...requestForm,
+                    skillsNeeded: skillsArray
+                }, { headers: { Authorization: `Bearer ${token}` } });
+                setMessage("Skill request updated!");
+            } else {
+                await axios.post('/api/skills/requests', {
+                    ...requestForm,
+                    skillsNeeded: skillsArray
+                }, { headers: { Authorization: `Bearer ${token}` } });
+                setMessage("Skill request created!");
             }
+            
+            setShowRequestModal(false);
+            setEditingRequest(null);
+            setRequestForm({ title: '', description: '', skillsNeeded: '' });
+            fetchRequests();
+            setTimeout(() => setMessage(''), 3000);
+        } catch (error) {
+            setMessage(error.response?.data?.message || "Failed to process request");
         }
     };
 
-    const filteredSkills = skills.filter(skill => {
-        if (filter === 'all') return true;
-        return skill.type === filter;
-    });
+    const handleDeleteRequest = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this request?")) return;
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`/api/skills/requests/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            fetchRequests();
+            setMessage("Request deleted");
+            setTimeout(() => setMessage(''), 3000);
+        } catch (error) {
+            setMessage(error.response?.data?.message || "Failed to delete request");
+        }
+    };
 
-    if (loading) return <div className="p-8 text-center">Loading skills...</div>;
-    if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
+    const handleCreateOrUpdateSkill = async (e) => {
+        e.preventDefault();
+        try {
+            const token = localStorage.getItem('token');
+            const skillsArray = skillForm.skillsOffered.split(',').map(s => s.trim());
+            
+            if (editingSkill) {
+                await axios.put(`/api/skills/offers/${editingSkill._id}`, {
+                    ...skillForm,
+                    skillsOffered: skillsArray
+                }, { headers: { Authorization: `Bearer ${token}` } });
+                setMessage("Skill structure updated!");
+            } else {
+                await axios.post('/api/skills/offers', {
+                    ...skillForm,
+                    skillsOffered: skillsArray
+                }, { headers: { Authorization: `Bearer ${token}` } });
+                setMessage("Skill published!");
+            }
+            
+            setShowSkillModal(false);
+            setEditingSkill(null);
+            setSkillForm({ title: '', description: '', skillsOffered: '' });
+            fetchSkills();
+            setTimeout(() => setMessage(''), 3000);
+        } catch (error) {
+            setMessage(error.response?.data?.message || "Failed to process skill");
+        }
+    };
+
+    const handleDeleteSkill = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this skill?")) return;
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`/api/skills/offers/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            fetchSkills();
+            setMessage("Skill deleted");
+            setTimeout(() => setMessage(''), 3000);
+        } catch (error) {
+            setMessage(error.response?.data?.message || "Failed to delete skill");
+        }
+    };
+
+    const handleReplyToRequest = async (e) => {
+        e.preventDefault();
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post(`/api/skills/requests/${showReplyModal._id}/reply`, replyForm, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setShowReplyModal(null);
+            setReplyForm({ message: '' });
+            fetchRequests(); // To reflect updated replies (if you chose to show them)
+            setMessage("Reply sent successfully via Email!");
+            setTimeout(() => setMessage(''), 3000);
+        } catch (error) {
+            setMessage(error.response?.data?.message || "Failed to send reply");
+        }
+    };
+
+    const openEditRequest = (req) => {
+        setEditingRequest(req);
+        setRequestForm({
+            title: req.title,
+            description: req.description,
+            skillsNeeded: req.skillsNeeded.join(', ')
+        });
+        setShowRequestModal(true);
+    };
+
+    const openEditSkill = (skill) => {
+        setEditingSkill(skill);
+        setSkillForm({
+            title: skill.title,
+            description: skill.description,
+            skillsOffered: skill.skillsOffered.join(', ')
+        });
+        setShowSkillModal(true);
+    };
+
+    const handleStudyClick = (skill) => {
+        // Navigate to the beautiful Study Preview Dashboard
+        navigate(`/study-skill/${skill._id}`);
+    };
+
+    if (loading) return <div className="flex justify-center items-center h-screen font-bold text-primary">Loading Skill Exchange...</div>;
+
+    const isStudent = user?.role === 'student';
+    const isExpert = user?.role === 'expert';
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <div className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-800">Peer Skill Exchange</h1>
-                {userInfo && (
-                    <Link
-                        to="/skills/create"
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300"
-                    >
-                        Create Listing
-                    </Link>
+        <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6">
+            <div className="max-w-7xl mx-auto text-center mb-10">
+                <h1 className="text-4xl font-black text-text-main mb-4 tracking-tight">Peer Skill Exchange</h1>
+                <p className="text-text-secondary max-w-2xl mx-auto font-medium">
+                    {isStudent ? "Request skills from experts or view available experts." : "Publish your skills and help students achieve their goals."}
+                </p>
+                {message && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 p-3 bg-primary/10 text-primary rounded-xl font-bold border border-primary/20 inline-block">
+                        {message}
+                    </motion.div>
                 )}
             </div>
 
-            <div className="mb-6 flex space-x-4">
-                <button
-                    onClick={() => setFilter('all')}
-                    className={`px-4 py-2 rounded ${filter === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-                >
-                    All
-                </button>
-                <button
-                    onClick={() => setFilter('offer')}
-                    className={`px-4 py-2 rounded ${filter === 'offer' ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-                >
-                    Offers to Teach
-                </button>
-                <button
-                    onClick={() => setFilter('request')}
-                    className={`px-4 py-2 rounded ${filter === 'request' ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
-                >
-                    Requests to Learn
-                </button>
-            </div>
-
-            {filteredSkills.length === 0 ? (
-                <p className="text-gray-600 text-center py-8">No skill listings found.</p>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredSkills.map((skill) => (
-                        <div key={skill._id} className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 flex flex-col">
-                            <div className="p-6 flex-grow">
-                                <div className="flex justify-between items-start mb-4">
-                                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${skill.type === 'offer' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'}`}>
-                                        {skill.type === 'offer' ? 'Teaching Offer' : 'Learning Request'}
-                                    </span>
-                                    <span className="text-sm text-gray-500">{new Date(skill.createdAt).toLocaleDateString()}</span>
-                                </div>
-                                <h2 className="text-xl font-bold text-gray-800 mb-2">{skill.title}</h2>
-                                <p className="text-sm text-blue-600 font-medium mb-4">{skill.category}</p>
-                                <p className="text-gray-600 mb-4 line-clamp-3">{skill.description}</p>
-
-                                <div className="mt-auto pt-4 border-t border-gray-100 flex items-center">
-                                    <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white font-bold mr-3 overflow-hidden">
-                                        {skill.createdBy?.profilePicture ? (
-                                            <img src={`http://localhost:5000${skill.createdBy.profilePicture}`} alt="Profile" className="w-full h-full object-cover" />
-                                        ) : (
-                                            skill.createdBy?.firstName?.charAt(0) || 'U'
-                                        )}
-                                    </div>
-                                    <span className="text-sm font-medium text-gray-700">
-                                        {skill.createdBy?.firstName} {skill.createdBy?.lastName}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="bg-gray-50 px-6 py-3 flex justify-between items-center">
-                                <Link to={`/skills/${skill._id}`} className="text-blue-600 hover:text-blue-800 font-medium text-sm">
-                                    View Details
-                                </Link>
-
-                                {userInfo?.role === 'expert' && skill.type === 'request' && (
-                                    <a
-                                        href={`mailto:${skill.createdBy?.email}?subject=Offering Expertise for your Request: ${skill.title}`}
-                                        className="text-green-600 hover:text-green-800 font-bold text-sm bg-green-50 px-3 py-1 rounded-full transition-colors"
-                                    >
-                                        Offer Expertise
-                                    </a>
-                                )}
-
-                                {currentUserId === skill.createdBy?._id && (
-                                    <div className="flex space-x-3">
-                                        <Link to={`/skills/edit/${skill._id}`} className="text-gray-500 hover:text-blue-600">
-                                            Edit
-                                        </Link>
-                                        <button onClick={() => handleDelete(skill._id)} className="text-gray-500 hover:text-red-600">
-                                            Delete
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+            <div className="max-w-5xl mx-auto bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-8">
+                {/* Tabs */}
+                <div className="flex justify-center border-b border-gray-200 mb-8">
+                    <button
+                        onClick={() => setActiveTab('requests')}
+                        className={`px-8 py-4 font-bold transition-colors ${activeTab === 'requests' ? 'text-primary border-b-4 border-primary' : 'text-text-secondary hover:text-text-main'}`}
+                    >
+                        Skill Requests
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('offers')}
+                        className={`px-8 py-4 font-bold transition-colors ${activeTab === 'offers' ? 'text-primary border-b-4 border-primary' : 'text-text-secondary hover:text-text-main'}`}
+                    >
+                        Expert Skills
+                    </button>
                 </div>
-            )}
-=======
-        if (!window.confirm('Are you sure you want to delete this listing?')) return;
-        setIsDeleting(id);
-        try {
-            const config = {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem('token')}`
-                }
-            };
-            await axios.delete(`http://localhost:5000/api/peer-skills/${id}`, config);
-            setSkills(skills.filter(s => s._id !== id));
-            setIsDeleting(null);
-        } catch (err) {
-            console.error(err);
-            alert('Failed to delete. ' + (err.response?.data?.message || ''));
-            setIsDeleting(null);
-        }
-    };
 
-    if (loading) return <div className="text-center py-20 text-text-secondary">Loading skills...</div>;
-    if (error) return <div className="text-center py-20 text-error bg-error-light/10 rounded-xl p-4">{error}</div>;
-
-    return (
-        <div className="max-w-6xl mx-auto">
-            <header className="mb-10 text-center relative">
-                <h1 className="text-4xl font-bold text-primary mb-2">Peer Skill Exchange</h1>
-                <p className="text-text-secondary">Empower yourself by teaching others or learning something new from your peers.</p>
-                <div className="mt-6">
-                    <Link to="/create-skill" className="bg-primary text-white px-8 py-3 rounded-2xl font-bold hover:bg-primary-dark transition-all shadow-sm hover:shadow-md inline-block">
-                        + Post a Skill
-                    </Link>
-                </div>
-            </header>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {skills.length > 0 ? (
-                    skills.map((skill) => (
-                        <div key={skill._id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow flex flex-col relative group">
-                            {/* Owner Actions */}
-                            {user && skill.createdBy?._id === user._id && (
-                                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Link 
-                                        to={`/edit-skill/${skill._id}`}
-                                        className="p-2 bg-white rounded-full shadow-sm border border-gray-100 text-text-secondary hover:text-primary transition-colors"
-                                        title="Edit"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                        </svg>
-                                    </Link>
-                                    <button 
-                                        onClick={() => handleDelete(skill._id)}
-                                        disabled={isDeleting === skill._id}
-                                        className="p-2 bg-white rounded-full shadow-sm border border-gray-100 text-text-secondary hover:text-error transition-colors"
-                                        title="Delete"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v2m3 4h.01" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            )}
-
-                            <div className="flex justify-between items-start mb-4">
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                                    skill.type === 'offer' ? 'bg-success-light/20 text-success' : 'bg-warning-light/20 text-warning'
-                                }`}>
-                                    {skill.type}
-                                </span>
-                                <span className="text-xs text-text-secondary bg-bg-main px-2 py-1 rounded italic mr-8">
-                                    {skill.category}
-                                </span>
-                            </div>
-                            <h2 className="text-xl font-bold mb-2 text-primary">{skill.title}</h2>
-                            <p className="text-text-secondary text-sm mb-6 line-clamp-3">{skill.description}</p>
-                            
-                            <div className="flex items-center mt-auto border-t border-gray-50 pt-4">
-                                <img 
-                                    src={skill.createdBy?.avatar || '/avatars/avatar1.png'} 
-                                    alt={skill.createdBy?.name} 
-                                    className="w-10 h-10 rounded-full border-2 border-white shadow-sm mr-3"
-                                />
-                                <div className="text-xs">
-                                    <p className="font-bold text-text-main">{skill.createdBy?.name || 'Anonymous'}</p>
-                                    <p className="text-text-secondary">{new Date(skill.createdAt).toLocaleDateString()}</p>
-                                </div>
-                                <button className="ml-auto text-primary text-sm font-bold hover:underline">
-                                    Contact
+                {/* Content: Skill Requests */}
+                {activeTab === 'requests' && (
+                    <div>
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-bold">Student Requests</h2>
+                            {isStudent && (
+                                <button
+                                    onClick={() => { setEditingRequest(null); setRequestForm({ title: '', description: '', skillsNeeded: '' }); setShowRequestModal(true); }}
+                                    className="bg-primary text-white px-6 py-2 rounded-2xl font-bold shadow-lg shadow-primary/20 transform hover:-translate-y-1 transition-all"
+                                >
+                                    + Create Request
                                 </button>
-                            </div>
+                            )}
                         </div>
-                    ))
-                ) : (
-                    <div className="col-span-full text-center py-20 bg-bg-main rounded-3xl border-2 border-dashed border-gray-200">
-                        <p className="text-text-secondary mb-4">No skill listings found yet.</p>
-                        <Link to="/create-skill" className="bg-primary text-white px-6 py-2 rounded-xl font-bold hover:bg-primary-dark transition-colors">
-                            Post First Skill
-                        </Link>
+
+                        {requests.length === 0 ? (
+                            <p className="text-center text-text-secondary py-10">No skill requests found.</p>
+                        ) : (
+                            <div className="grid gap-6">
+                                {requests.map(req => (
+                                    <div key={req._id} className="border border-gray-100 p-6 rounded-2xl bg-gray-50/50 hover:bg-white transition-all shadow-sm flex flex-col md:flex-row gap-6 justify-between">
+                                        <div className="flex-grow">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <img src={`/${req.requestedBy?.avatar || 'avatars/avatar1.png'}`} alt="" className="w-10 h-10 rounded-full bg-white border border-gray-200" />
+                                                <div>
+                                                    <p className="font-bold text-text-main leading-tight">{req.requestedBy?.name}</p>
+                                                    <p className="text-xs text-text-muted uppercase tracking-widest">{req.requestedBy?.role}</p>
+                                                </div>
+                                            </div>
+                                            <h3 className="text-xl font-bold text-primary mb-2">{req.title}</h3>
+                                            <p className="text-text-secondary mb-4">{req.description}</p>
+                                            <div className="flex flex-wrap gap-2 mb-4">
+                                                {req.skillsNeeded.map((skill, idx) => (
+                                                    <span key={idx} className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-primary/20">
+                                                        {skill}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                            {req.replies && req.replies.length > 0 && (
+                                                <div className="mt-4 pt-4 border-t border-gray-200">
+                                                    <p className="text-sm font-bold text-text-main mb-2">Expert Replies ({req.replies.length}):</p>
+                                                    {req.replies.map((reply, idx) => (
+                                                        <div key={idx} className="bg-white p-3 rounded-xl border border-gray-100 flex gap-3 text-sm">
+                                                            <div className="font-bold text-accent min-w-max">{reply.expert?.name}:</div>
+                                                            <div className="text-text-secondary">{reply.message}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        
+                                        {/* Action Buttons */}
+                                        <div className="flex flex-col gap-2 min-w-[120px]">
+                                            {isStudent && user._id === req.requestedBy?._id && (
+                                                <>
+                                                    <button onClick={() => openEditRequest(req)} className="bg-gray-100 text-text-main px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors">Edit</button>
+                                                    <button onClick={() => handleDeleteRequest(req._id)} className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors">Delete</button>
+                                                </>
+                                            )}
+                                            {isExpert && (
+                                                <button onClick={() => setShowReplyModal(req)} className="bg-accent text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-cyan-600 shadow-md transition-colors">
+                                                    Reply via Email
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Content: Expert Skills */}
+                {activeTab === 'offers' && (
+                    <div>
+                        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                            <h2 className="text-2xl font-bold">Expert Skills</h2>
+                            <div className="flex-1 max-w-md w-full">
+                                <div className="relative">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Search by title or skill (e.g., React, Node)..." 
+                                        value={skillSearch}
+                                        onChange={(e) => setSkillSearch(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                                    />
+                                    <svg className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                </div>
+                            </div>
+                            {isExpert && (
+                                <button
+                                    onClick={() => { setEditingSkill(null); setSkillForm({ title: '', description: '', skillsOffered: '' }); setShowSkillModal(true); }}
+                                    className="bg-accent text-white px-6 py-2 rounded-2xl font-bold shadow-lg shadow-accent/20 transform hover:-translate-y-1 transition-all whitespace-nowrap"
+                                >
+                                    + Publish Skill
+                                </button>
+                            )}
+                        </div>
+
+                        {skills.length === 0 ? (
+                            <p className="text-center text-text-secondary py-10">No skills published yet.</p>
+                        ) : (
+                            <div className="grid md:grid-cols-2 gap-6">
+                                {skills.filter(skill => 
+                                    skill.title.toLowerCase().includes(skillSearch.toLowerCase()) || 
+                                    skill.skillsOffered.some(s => s.toLowerCase().includes(skillSearch.toLowerCase()))
+                                ).length === 0 ? (
+                                    <p className="text-center text-text-secondary col-span-2 py-8">No specific skills found matching "{skillSearch}".</p>
+                                ) : (
+                                    skills.filter(skill => 
+                                        skill.title.toLowerCase().includes(skillSearch.toLowerCase()) || 
+                                        skill.skillsOffered.some(s => s.toLowerCase().includes(skillSearch.toLowerCase()))
+                                    ).map(skill => (
+                                        <div key={skill._id} className="border border-gray-100 p-6 rounded-2xl bg-white hover:shadow-lg transition-all shadow-sm flex flex-col justify-between">
+                                        <div>
+                                            <div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-4">
+                                                <img src={`/${skill.publishedBy?.avatar || 'avatars/avatar1.png'}`} alt="" className="w-12 h-12 rounded-full border border-gray-200" />
+                                                <div>
+                                                    <p className="font-bold text-text-main text-lg leading-tight">{skill.publishedBy?.name}</p>
+                                                    <p className="text-xs text-accent uppercase font-black tracking-widest">{skill.publishedBy?.role}</p>
+                                                </div>
+                                            </div>
+                                            <h3 className="text-xl font-bold text-primary mb-2">{skill.title}</h3>
+                                            <p className="text-text-secondary mb-4 min-h-[60px]">{skill.description}</p>
+                                            <div className="flex flex-wrap gap-2 mb-6">
+                                                {skill.skillsOffered.map((s, idx) => (
+                                                    <span key={idx} className="bg-accent/10 text-accent px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-accent/20">
+                                                        {s}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {isExpert && user._id === skill.publishedBy?._id && (
+                                            <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                                                <button onClick={() => openEditSkill(skill)} className="flex-1 bg-gray-100 text-text-main px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-200 transition-colors">Edit</button>
+                                                <button onClick={() => handleDeleteSkill(skill._id)} className="flex-1 bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors">Delete</button>
+                                            </div>
+                                        )}
+                                        {isStudent && (
+                                            <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                                                <button onClick={() => handleStudyClick(skill)} className="w-full bg-accent text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md hover:bg-cyan-600 transition-colors">
+                                                    Study
+                                                </button>
+                                            </div>
+                                        )}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
->>>>>>> 9b0a3de (feat: complete peer skill exchange and admin dashboard, security: untrack .env)
+
+            {/* Modal: Request Form */}
+            {showRequestModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                    <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 max-w-lg w-full">
+                        <h2 className="text-2xl font-bold mb-6">{editingRequest ? 'Edit Request' : 'Create Skill Request'}</h2>
+                        <form onSubmit={handleCreateOrUpdateRequest} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold mb-1">Title</label>
+                                <input type="text" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl" required value={requestForm.title} onChange={e => setRequestForm({...requestForm, title: e.target.value})} placeholder="e.g. Need help with React hooks" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-1">Description</label>
+                                <textarea className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl h-32" required value={requestForm.description} onChange={e => setRequestForm({...requestForm, description: e.target.value})} placeholder="Describe what you want to learn..." />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-1">Skills Needed (comma separated)</label>
+                                <input type="text" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl" required value={requestForm.skillsNeeded} onChange={e => setRequestForm({...requestForm, skillsNeeded: e.target.value})} placeholder="React, JavaScript, CSS" />
+                            </div>
+                            <div className="flex gap-4 pt-4">
+                                <button type="submit" className="flex-1 bg-primary text-white py-3 rounded-xl font-bold">{editingRequest ? 'Save Changes' : 'Submit Request'}</button>
+                                <button type="button" onClick={() => setShowRequestModal(false)} className="flex-1 bg-gray-100 py-3 rounded-xl font-bold">Cancel</button>
+                            </div>
+                        </form>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Modal: Skill Form */}
+            {showSkillModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                    <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 max-w-lg w-full">
+                        <h2 className="text-2xl font-bold mb-6 text-accent">{editingSkill ? 'Edit Skill' : 'Publish Skill'}</h2>
+                        <form onSubmit={handleCreateOrUpdateSkill} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold mb-1">Title</label>
+                                <input type="text" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl" required value={skillForm.title} onChange={e => setSkillForm({...skillForm, title: e.target.value})} placeholder="e.g. Advanced Node.js Mentorship" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-1">Description</label>
+                                <textarea className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl h-32" required value={skillForm.description} onChange={e => setSkillForm({...skillForm, description: e.target.value})} placeholder="Describe what you can teach..." />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-1">Skills Offered (comma separated)</label>
+                                <input type="text" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl" required value={skillForm.skillsOffered} onChange={e => setSkillForm({...skillForm, skillsOffered: e.target.value})} placeholder="Node.js, Express, MongoDB" />
+                            </div>
+                            <div className="flex gap-4 pt-4">
+                                <button type="submit" className="flex-1 bg-accent text-white py-3 rounded-xl font-bold">{editingSkill ? 'Save Changes' : 'Publish Skill'}</button>
+                                <button type="button" onClick={() => setShowSkillModal(false)} className="flex-1 bg-gray-100 py-3 rounded-xl font-bold">Cancel</button>
+                            </div>
+                        </form>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Modal: Reply Form */}
+            {showReplyModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+                    <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-3xl p-8 max-w-lg w-full">
+                        <h2 className="text-2xl font-bold mb-2 text-primary">Reply to {showReplyModal.requestedBy?.name}</h2>
+                        <p className="text-sm text-text-secondary mb-6">Your reply will be sent via email to the student and logged below their request.</p>
+                        <form onSubmit={handleReplyToRequest} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold mb-1">Message</label>
+                                <textarea className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl h-32" required value={replyForm.message} onChange={e => setReplyForm({ message: e.target.value })} placeholder="Type your formal response here..." />
+                            </div>
+                            <div className="flex gap-4 pt-4">
+                                <button type="submit" className="flex-1 bg-primary text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                    Send Email
+                                </button>
+                                <button type="button" onClick={() => setShowReplyModal(null)} className="flex-1 bg-gray-100 py-3 rounded-xl font-bold">Cancel</button>
+                            </div>
+                        </form>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 };

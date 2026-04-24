@@ -1,11 +1,6 @@
 const Skill = require('../../models/peer-skill-exchange/Skill');
 const Response = require('../../models/peer-skill-exchange/Response');
 const { sendSkillReplyEmail } = require('../../utils/emailUtils');
-<<<<<<< HEAD
-=======
->>>>>>> 9b0a3de (feat: complete peer skill exchange and admin dashboard, security: untrack .env)
-=======
->>>>>>> 367d6a9 (fix DB connection)
 
 // @desc    Create a new skill listing
 // @route   POST /api/peer-skills
@@ -26,12 +21,6 @@ const createSkill = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error' });
-<<<<<<< HEAD
-=======
-        res.status(500).json({ message: 'Database Connection Error', details: error.message });
->>>>>>> 9b0a3de (feat: complete peer skill exchange and admin dashboard, security: untrack .env)
-=======
->>>>>>> 367d6a9 (fix DB connection)
     }
 };
 
@@ -45,16 +34,6 @@ const getAllSkills = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error' });
-<<<<<<< HEAD
-=======
-        const skills = await Skill.find().populate('createdBy', 'name email avatar');
-        res.status(200).json(skills);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Database Connection Error', details: error.message });
->>>>>>> 9b0a3de (feat: complete peer skill exchange and admin dashboard, security: untrack .env)
-=======
->>>>>>> 367d6a9 (fix DB connection)
     }
 };
 
@@ -64,12 +43,6 @@ const getAllSkills = async (req, res) => {
 const getSkillById = async (req, res) => {
     try {
         const skill = await Skill.findById(req.params.id).populate('createdBy', 'firstName lastName email profilePicture');
-<<<<<<< HEAD
-=======
-        const skill = await Skill.findById(req.params.id).populate('createdBy', 'name email avatar');
->>>>>>> 9b0a3de (feat: complete peer skill exchange and admin dashboard, security: untrack .env)
-=======
->>>>>>> 367d6a9 (fix DB connection)
 
         if (!skill) {
             return res.status(404).json({ message: 'Skill listing not found' });
@@ -79,12 +52,6 @@ const getSkillById = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error' });
-<<<<<<< HEAD
-=======
-        res.status(500).json({ message: 'Database Connection Error', details: error.message });
->>>>>>> 9b0a3de (feat: complete peer skill exchange and admin dashboard, security: untrack .env)
-=======
->>>>>>> 367d6a9 (fix DB connection)
     }
 };
 
@@ -116,12 +83,6 @@ const updateSkill = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error' });
-<<<<<<< HEAD
-=======
-        res.status(500).json({ message: 'Database Connection Error', details: error.message });
->>>>>>> 9b0a3de (feat: complete peer skill exchange and admin dashboard, security: untrack .env)
-=======
->>>>>>> 367d6a9 (fix DB connection)
     }
 };
 
@@ -193,12 +154,6 @@ const replyToSkillRequest = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error' });
-<<<<<<< HEAD
-=======
-        res.status(500).json({ message: 'Database Connection Error', details: error.message });
->>>>>>> 9b0a3de (feat: complete peer skill exchange and admin dashboard, security: untrack .env)
-=======
->>>>>>> 367d6a9 (fix DB connection)
     }
 };
 
@@ -209,10 +164,4 @@ module.exports = {
     updateSkill,
     deleteSkill,
     replyToSkillRequest
-<<<<<<< HEAD
-=======
-    deleteSkill
->>>>>>> 9b0a3de (feat: complete peer skill exchange and admin dashboard, security: untrack .env)
-=======
->>>>>>> 367d6a9 (fix DB connection)
 };
