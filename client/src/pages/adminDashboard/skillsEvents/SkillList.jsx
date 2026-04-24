@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const SkillList = () => {
     const navigate = useNavigate();
@@ -64,10 +66,56 @@ const SkillList = () => {
         navigate('/skills/create');
     };
 
+    const generatePDF = () => {
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFontSize(20);
+        doc.setTextColor(40);
+        doc.text('Peer Skill Exchange Report', 14, 22);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+        
+        // Table Data
+        const tableColumn = ["Title", "Category", "Type", "Creator"];
+        const tableRows = [];
+
+        filteredSkills.forEach(skill => {
+            const creatorName = skill.createdBy ? `${skill.createdBy.firstName || ''} ${skill.createdBy.lastName || ''}`.trim() || 'Unknown' : 'Unknown';
+            const skillData = [
+                skill.title || 'N/A',
+                skill.category || 'N/A',
+                skill.type || 'N/A',
+                creatorName
+            ];
+            tableRows.push(skillData);
+        });
+
+        doc.autoTable({
+            head: [tableColumn],
+            body: tableRows,
+            startY: 35,
+            theme: 'grid',
+            styles: { fontSize: 10, cellPadding: 3 },
+            headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+            didDrawPage: function (data) {
+                // Footer
+                const str = 'Page ' + doc.internal.getNumberOfPages();
+                doc.setFontSize(10);
+                const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+                doc.text(str, data.settings.margin.left, pageHeight - 10);
+            }
+        });
+
+        doc.save('skills-report.pdf');
+    };
+
     const filteredSkills = skills.filter(skill => {
         const matchesType = filter === 'all' || skill.type === filter;
-        const matchesSearch = skill.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            skill.category.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = (skill.title || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+            (skill.category || '').toLowerCase().includes((searchTerm || '').toLowerCase());
         return matchesType && matchesSearch;
     });
 
@@ -87,6 +135,15 @@ const SkillList = () => {
                 </div>
                 <div className="flex items-center gap-4">
                     {error && <span className="text-error text-sm font-bold bg-red-50 px-4 py-2 rounded-xl border border-red-100 italic">{error}</span>}
+                    <button
+                        onClick={generatePDF}
+                        className="bg-white border border-gray-200 text-text-main hover:bg-gray-50 px-5 py-2 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 flex items-center gap-2"
+                    >
+                        <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Download PDF
+                    </button>
                     <button
                         onClick={handleCreate}
                         className="bg-primary hover:bg-primary-dark text-white px-5 py-2 rounded-xl text-sm font-bold shadow-xl shadow-primary/20 transition-all active:scale-95 flex items-center gap-2 group"
