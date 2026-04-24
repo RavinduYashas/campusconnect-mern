@@ -39,11 +39,74 @@ const createSport = async (req, res) => {
     }
 };
 
-// Get all sports
+// Get all sports (public) - supports search, filtering and pagination
 const getSports = async (req, res) => {
     try {
-        const sports = await Sport.find({ isActive: true }).populate('createdBy', 'name email avatar');
-        res.json(sports);
+        // support basic pagination and search on public endpoint
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 20;
+        const search = (req.query.search || '').trim();
+        const isActiveParam = req.query.isActive;
+        const minMembers = req.query.minMembers ? parseInt(req.query.minMembers, 10) : null;
+
+        const match = {};
+        // default public view: only active unless explicitly specified
+        if (typeof isActiveParam !== 'undefined') {
+            match.isActive = (isActiveParam === 'true' || isActiveParam === '1' || isActiveParam === true);
+        } else {
+            match.isActive = true;
+        }
+
+        const pipeline = [];
+        if (Object.keys(match).length) pipeline.push({ $match: match });
+
+        // lookup members for possible email search or minMembers
+        pipeline.push({
+            $lookup: {
+                from: 'users',
+                localField: 'members',
+                foreignField: '_id',
+                as: 'members'
+            }
+        });
+
+        if (search) {
+            const rx = new RegExp(search.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&'), 'i');
+            pipeline.push({
+                $match: {
+                    $or: [
+                        { name: rx },
+                        { description: rx },
+                        { 'members.email': rx }
+                    ]
+                }
+            });
+        }
+
+        if (minMembers && !Number.isNaN(minMembers)) {
+            pipeline.push({ $addFields: { membersCount: { $size: '$members' } } });
+            pipeline.push({ $match: { membersCount: { $gte: minMembers } } });
+        }
+
+        pipeline.push({ $sort: { createdAt: -1 } });
+
+        const all = await Sport.aggregate(pipeline);
+        const total = all.length;
+        console.log(`[getSports] public search='${search}' isActive='${isActiveParam}' minMembers='${minMembers}' found=${total}`);
+        const totalPages = Math.max(1, Math.ceil(total / limit));
+        const start = (page - 1) * limit;
+        const slice = all.slice(start, start + limit);
+
+        const ids = slice.map(d => d._id);
+        let data = [];
+        if (ids.length) {
+            data = await Sport.find({ _id: { $in: ids } }).populate('createdBy', 'name email avatar');
+            const byId = new Map(data.map(d => [d._id.toString(), d]));
+            data = ids.map(id => byId.get(id.toString()) || null).filter(Boolean);
+        }
+
+        console.log(`[getSports] returning page ${page} limit ${limit} items=${data.length}`);
+        return res.json({ data, meta: { page, limit, total, totalPages } });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -124,7 +187,7 @@ const updateSport = async (req, res) => {
     }
 };
 
-// Deactivate sport
+// Delete sport (permanently)
 const deleteSport = async (req, res) => {
     try {
         const sport = await Sport.findById(req.params.id);
@@ -132,9 +195,16 @@ const deleteSport = async (req, res) => {
         if (req.user.role !== 'admin' && (!sport.createdBy || sport.createdBy.toString() !== req.user._id.toString())) {
             return res.status(403).json({ message: 'Not authorized' });
         }
-        sport.isActive = false;
-        await sport.save();
-        res.json({ message: 'Deactivated' });
+
+        // Permanently remove sport
+        await Sport.findByIdAndDelete(sport._id);
+
+        // Clean up related sport requests
+        if (typeof SportRequest !== 'undefined') {
+            await SportRequest.deleteMany({ sport: sport._id }).catch(() => {});
+        }
+
+        res.json({ message: 'Sport deleted' });
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
@@ -390,6 +460,7 @@ const getAllSports = async (req, res) => {
         const sports = await Sport.aggregate(pipeline);
         const total = sports.length;
         const totalPages = Math.ceil(total / limit) || 1;
+        console.log(`[getAllSports] search='${search}' isActive='${isActive}' minMembers='${minMembers}' found=${total}`);
         const start = (page - 1) * limit;
         const dataSlice = sports.slice(start, start + limit);
 
@@ -401,6 +472,7 @@ const getAllSports = async (req, res) => {
             data = ids.map(id => byId.get(id.toString()) || null).filter(Boolean);
         }
 
+        console.log(`[getAllSports] returning page ${page} limit ${limit} items=${data.length}`);
         res.json({ data, meta: { page, limit, total, totalPages } });
     } catch (err) {
         res.status(500).json({ message: err.message });

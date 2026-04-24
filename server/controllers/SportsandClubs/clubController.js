@@ -10,6 +10,7 @@ const createClub = async (req, res) => {
         if (!name) return res.status(400).json({ message: 'Club name is required' });
         // name must contain only letters and spaces
         if (!/^[A-Za-z\s]+$/.test(name)) return res.status(400).json({ message: 'Club name may only contain letters and spaces' });
+
         let mm;
         if (typeof maxMembers !== 'undefined' && maxMembers !== null && maxMembers !== '') {
             mm = parseInt(maxMembers, 10);
@@ -313,9 +314,15 @@ const deleteClub = async (req, res) => {
             return res.status(403).json({ message: 'Not authorized to delete this club' });
         }
 
-        club.isActive = false;
-        await club.save();
-        res.json({ message: 'Club deactivated' });
+        // Permanently remove club
+        await Club.findByIdAndDelete(club._id);
+
+        // Clean up related requests
+        if (typeof ClubRequest !== 'undefined') {
+            await ClubRequest.deleteMany({ club: club._id }).catch(() => {});
+        }
+
+        res.json({ message: 'Club deleted' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

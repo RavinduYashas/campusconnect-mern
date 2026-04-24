@@ -20,17 +20,18 @@ const SportsTeamList = () => {
     const [totalPages, setTotalPages] = useState(1);
     const [total, setTotal] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filterIsActive, setFilterIsActive] = useState('any');
     const [minMembers, setMinMembers] = useState('');
     const [selectedIds, setSelectedIds] = useState([]);
     const [bulkLoading, setBulkLoading] = useState(false);
     const [csvFile, setCsvFile] = useState(null);
 
-    const buildQuery = () => {
+    const buildQuery = (searchValue) => {
         const qs = new URLSearchParams();
         if (page) qs.set('page', page);
         if (limit) qs.set('limit', limit);
-        if (searchTerm) qs.set('search', searchTerm);
+        if (searchValue) qs.set('search', searchValue);
         if (filterIsActive && filterIsActive !== 'any') qs.set('isActive', filterIsActive === 'active');
         if (minMembers) qs.set('minMembers', minMembers);
         return qs.toString();
@@ -40,11 +41,14 @@ const SportsTeamList = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('token');
-            const qs = buildQuery();
+            const qs = buildQuery(debouncedSearch);
             if (token) {
-                const resAdmin = await fetch(`/api/sports/admin/all-teams${qs ? `?${qs}` : ''}`, { headers: { Authorization: `Bearer ${token}` } });
+                const adminUrl = `/api/sports/admin/all-teams${qs ? `?${qs}` : ''}`;
+                console.debug('SportsTeamList: fetching admin URL', adminUrl);
+                const resAdmin = await fetch(adminUrl, { headers: { Authorization: `Bearer ${token}` } });
                 if (resAdmin.ok) {
                     const body = await resAdmin.json();
+                    console.debug('SportsTeamList: admin response', body);
                     if (Array.isArray(body)) {
                         setTeams(body);
                         setTotal(body.length);
@@ -59,9 +63,12 @@ const SportsTeamList = () => {
                 }
                 if (resAdmin.status === 401 || resAdmin.status === 403) {
                     try {
-                        const resAuth = await fetch(`/api/sports${qs ? `?${qs}` : ''}`, { headers: { Authorization: `Bearer ${token}` } });
+                        const publicUrl = `/api/sports${qs ? `?${qs}` : ''}`;
+                        console.debug('SportsTeamList: admin forbidden, fetching public URL', publicUrl);
+                        const resAuth = await fetch(publicUrl, { headers: { Authorization: `Bearer ${token}` } });
                         if (resAuth.ok) {
                             const body = await resAuth.json();
+                            console.debug('SportsTeamList: public response with auth', body);
                             if (Array.isArray(body)) {
                                 setTeams(body);
                                 setTotal(body.length);
@@ -79,7 +86,9 @@ const SportsTeamList = () => {
             }
 
             const res = await fetch(`/api/sports${qs ? `?${qs}` : ''}`);
+                console.debug('SportsTeamList: fetching public URL without token', `/api/sports${qs ? `?${qs}` : ''}`);
             const data = await res.json();
+                console.debug('SportsTeamList: public response', data);
             if (Array.isArray(data)) {
                 setTeams(data);
                 setTotal(data.length);
@@ -136,7 +145,13 @@ const SportsTeamList = () => {
         }
     };
 
-    useEffect(() => { loadTeams(); }, [page, limit, searchTerm, filterIsActive, minMembers]);
+    // debounce search input so typing updates don't fire too many requests and ensure correct query is used
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
+        return () => clearTimeout(t);
+    }, [searchTerm]);
+
+    useEffect(() => { loadTeams(); }, [page, limit, debouncedSearch, filterIsActive, minMembers]);
 
     const fetchGlobalRequests = async (sportsArray) => {
         const token = localStorage.getItem('token');
