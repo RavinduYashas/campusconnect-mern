@@ -81,7 +81,10 @@ const AdminDashboard = () => {
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-            )
+            ),
+            description: 'Monitor discussions, manage groups, and assist students.',
+            color: 'from-pink-500 to-rose-600',
+            bgHover: 'hover:border-pink-200'
         },
         {
             title: 'Platform Statistics',
@@ -99,7 +102,7 @@ const AdminDashboard = () => {
             title: 'All Members',
             path: '/admin/all-members',
             icon: (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
                     <path d="M16 11c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3z" />
                     <path d="M6 21v-2a4 4 0 014-4h4" />
                 </svg>
@@ -187,8 +190,8 @@ const AdminDashboard = () => {
                                     <div className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
                                     
                                     {/* Icon with animated background */}
-                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg bg-gradient-to-br ${item.color} bg-opacity-10`}>
-                                        <div className="text-white">
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg bg-gradient-to-br ${item.color}`}>
+                                        <div className="text-white [&>svg]:w-7 [&>svg]:h-7">
                                             {item.icon}
                                         </div>
                                     </div>
