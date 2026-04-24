@@ -53,6 +53,16 @@ const AdminDashboard = () => {
             )
         },
         {
+            title: 'All Members',
+            path: '/admin/all-members',
+            icon: (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                    <path d="M16 11c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3z" />
+                    <path d="M6 21v-2a4 4 0 014-4h4" />
+                </svg>
+            )
+        },
+        {
             title: 'System Settings',
             path: '#',
             icon: (

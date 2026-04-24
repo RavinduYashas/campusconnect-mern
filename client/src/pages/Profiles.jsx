@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import AvatarSelector from '../components/AvatarSelector';
+import CodeBlock from '../components/CodeBlock';
 
 const Profiles = () => {
     const navigate = useNavigate();
@@ -12,6 +13,8 @@ const Profiles = () => {
     const [message, setMessage] = useState('');
     const [isEditMode, setIsEditMode] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [qaData, setQaData] = useState({ stats: {} });
+    const [selectedQA, setSelectedQA] = useState(null);
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -40,6 +43,12 @@ const Profiles = () => {
                         ? res.data.professionalInfo
                         : [{ company: '', jobTitle: '', experienceYears: '' }],
                 });
+
+                // Fetch QA stats
+                const qaRes = await axios.get(`/api/qa/profile-data/${res.data._id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setQaData(qaRes.data);
             } catch (err) {
                 console.error("Failed to fetch user data:", err);
             } finally {
@@ -476,7 +485,7 @@ const Profiles = () => {
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="bg-white rounded-xl p-4 shadow-sm text-center">
                                                     <div className="text-xl font-bold text-text-main">
-                                                        {user.role === 'admin' ? 'ALL' : '0'}
+                                                        {user.role === 'admin' ? 'ALL' : (qaData.stats.totalPosts || 0)}
                                                     </div>
                                                     <div className="text-xs text-text-secondary uppercase font-bold tracking-tighter">
                                                         {user.role === 'admin' ? 'Access' : 'Posts'}
@@ -484,13 +493,74 @@ const Profiles = () => {
                                                 </div>
                                                 <div className="bg-white rounded-xl p-4 shadow-sm text-center">
                                                     <div className="text-xl font-bold text-text-main uppercase">
-                                                        {user.role === 'admin' ? 'Live' : '0'}
+                                                        {user.role === 'admin' ? 'Live' : (qaData.stats.totalAnswers || 0)}
                                                     </div>
                                                     <div className="text-xs text-text-secondary uppercase font-bold tracking-tighter">
                                                         {user.role === 'admin' ? 'Service' : 'Contribs'}
                                                     </div>
                                                 </div>
+                                                {user.role === 'expert' && (
+                                                    <>
+                                                        <div className="bg-white rounded-xl p-4 shadow-sm text-center border-t-2 border-green-500/20">
+                                                            <div className="text-xl font-bold text-green-600">
+                                                                {qaData.stats.solvedSolutions || 0}
+                                                            </div>
+                                                            <div className="text-xs text-text-secondary uppercase font-bold tracking-tighter">
+                                                                Solved
+                                                            </div>
+                                                        </div>
+                                                        <div className="bg-white rounded-xl p-4 shadow-sm text-center border-t-2 border-primary/20">
+                                                            <div className="text-xl font-bold text-primary">
+                                                                {qaData.stats.helpfulLikes || 0}
+                                                            </div>
+                                                            <div className="text-xs text-text-secondary uppercase font-bold tracking-tighter">
+                                                                Likes
+                                                            </div>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
+                                        </div>
+
+                                        {/* User Activity Feed */}
+                                        <div className="space-y-4">
+                                            <h3 className="text-sm font-bold text-text-secondary uppercase tracking-wider mb-2">
+                                                Recent Activity
+                                            </h3>
+                                            {user.role === 'student' ? (
+                                                <div className="space-y-3">
+                                                    {(qaData.questions && qaData.questions.length > 0) ? qaData.questions.slice(0, 5).map(q => (
+                                                        <button
+                                                            key={q._id}
+                                                            onClick={() => setSelectedQA(q)}
+                                                            className="w-full text-left block bg-white p-4 rounded-xl border border-gray-100 hover:border-primary/30 transition-all group"
+                                                        >
+                                                            <div className="flex justify-between items-start mb-1">
+                                                                <span className="text-[10px] font-black text-primary uppercase tracking-widest italic">Question</span>
+                                                                {q.isSolved && <span className="text-green-500 font-bold text-xs uppercase italic">Solved ✅</span>}
+                                                            </div>
+                                                            <h4 className="font-bold text-text-main group-hover:text-primary transition-colors line-clamp-1">{q.title}</h4>
+                                                        </button>
+                                                    )) : <p className="text-xs text-text-secondary italic">No questions posted yet</p>}
+                                                </div>
+                                            ) : user.role === 'expert' ? (
+                                                <div className="space-y-3">
+                                                    {(qaData.answers && qaData.answers.length > 0) ? qaData.answers.slice(0, 5).map(a => (
+                                                        <button
+                                                            key={a._id}
+                                                            onClick={() => setSelectedQA(a.question)}
+                                                            className="w-full text-left block bg-white p-4 rounded-xl border border-gray-100 hover:border-primary/30 transition-all group"
+                                                        >
+                                                            <div className="flex justify-between items-start mb-1">
+                                                                <span className="text-[10px] font-black text-primary uppercase tracking-widest italic">Provided Answer</span>
+                                                                {a.isSolved && <span className="text-green-500 font-bold text-xs uppercase italic">Accepted Solution 💡</span>}
+                                                            </div>
+                                                            <h4 className="text-xs font-medium text-text-secondary mb-1">Re: {a.question?.title}</h4>
+                                                            <p className="text-sm text-text-main font-bold line-clamp-2">{a.content}</p>
+                                                        </button>
+                                                    )) : <p className="text-xs text-text-secondary italic">No answers provided yet</p>}
+                                                </div>
+                                            ) : null}
                                         </div>
 
                                         <div className="flex justify-center sm:justify-start">
@@ -511,6 +581,91 @@ const Profiles = () => {
                     </div>
                 </div>
             </motion.div>
+
+            {/* Q&A Detail Modal */}
+            <AnimatePresence>
+                {selectedQA && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+                        onClick={() => setSelectedQA(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-white rounded-[2.5rem] w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="p-8 h-full flex flex-col">
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-primary/10 p-3 rounded-2xl">
+                                            <span className="text-2xl">❓</span>
+                                        </div>
+                                        <div>
+                                            <h2 className="text-2xl font-black text-text-main tracking-tight line-clamp-2">{selectedQA.title}</h2>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <img src={`/${selectedQA.askedBy?.avatar}`} alt="" className="w-5 h-5 rounded-full border" />
+                                                <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Asked by {selectedQA.askedBy?.name}</span>
+                                                {selectedQA.isSolved && (
+                                                    <span className="text-[10px] font-black bg-green-500 text-white px-2 py-0.5 rounded-full uppercase tracking-tighter ml-2 italic">Solved ✅</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setSelectedQA(null)}
+                                        className="bg-gray-100 hover:bg-gray-200 text-text-secondary p-2 rounded-xl transition-colors"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+
+                                <div className="flex-grow overflow-y-auto custom-scrollbar pr-2 space-y-6">
+                                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                                        <p className="text-text-main leading-relaxed mb-4">{selectedQA.description}</p>
+                                        {selectedQA.code && <CodeBlock code={selectedQA.code} language={selectedQA.language} />}
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <h3 className="text-xs font-black text-primary uppercase tracking-[0.2em] px-2 flex items-center gap-2">
+                                            <span>Expert Solutions</span>
+                                            <div className="h-px flex-grow bg-primary/10"></div>
+                                        </h3>
+
+                                        {selectedQA.answers && selectedQA.answers.length > 0 ? (
+                                            selectedQA.answers.map(answer => (
+                                                <div key={answer._id} className={`p-6 rounded-3xl border transition-all ${answer.isSolved
+                                                    ? 'bg-green-50/50 border-green-200 ring-2 ring-green-500/10'
+                                                    : 'bg-white border-gray-100'
+                                                    }`}>
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <img src={`/${answer.answeredBy?.avatar}`} alt="" className="w-6 h-6 rounded-full border" />
+                                                        <span className="text-sm font-bold text-text-main">{answer.answeredBy?.name}</span>
+                                                        <span className="text-[10px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase tracking-tighter italic">Verified Expert</span>
+                                                        {answer.isSolved && (
+                                                            <span className="text-[10px] font-black text-green-600 uppercase tracking-widest ml-auto italic">Accepted Solution</span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm text-text-secondary leading-relaxed mb-4 font-medium">{answer.content}</p>
+                                                    {answer.code && <CodeBlock code={answer.code} language={answer.language} />}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="text-center py-8 bg-gray-50 rounded-3xl border border-dashed border-gray-200 text-text-muted font-bold italic">
+                                                No answers provided yet.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

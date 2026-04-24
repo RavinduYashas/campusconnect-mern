@@ -3,6 +3,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profiles from './pages/Profiles';
+import ProfileView from './pages/ProfileView';
 import QA from './pages/QA';
 import Skills from './pages/Skills';
 import StudyGroups from './pages/StudyGroups';
@@ -15,12 +16,18 @@ import SkillList from './pages/adminDashboard/skillsEvents/SkillList';
 import StudyGroupList from './pages/adminDashboard/studyGroupsWorkshops/StudyGroupList';
 import ClubList from './pages/adminDashboard/clubs/ClubList';
 import SportsTeamList from './pages/adminDashboard/sports/SportsTeamList';
+import AllMembers from './pages/adminDashboard/AllMembers';
 import AdminLayout from './components/admin/AdminLayout';
 import ClientLayout from './components/ClientLayout';
 
+import { ToastProvider } from './context/ToastContext';
+import { ConfirmProvider } from './context/ConfirmContext';
+
 function App() {
   return (
-    <Router>
+    <ToastProvider>
+      <ConfirmProvider>
+        <Router>
       <Routes>
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminLayout />}>
@@ -31,6 +38,7 @@ function App() {
           <Route path="study-groups" element={<StudyGroupList />} />
           <Route path="clubs" element={<ClubList />} />
           <Route path="sports" element={<SportsTeamList />} />
+          <Route path="all-members" element={<AllMembers />} />
           <Route path="users" element={<ManageUsers />} />
           <Route path="moderation" element={<div className="text-center py-20 text-text-secondary">Moderation Module Coming Soon</div>} />
           <Route path="settings" element={<div className="text-center py-20 text-text-secondary">System Settings Coming Soon</div>} />
@@ -42,6 +50,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/profiles" element={<Profiles />} />
+          <Route path="/profile/:id" element={<ProfileView />} />
           <Route path="/qa" element={<QA />} />
           <Route path="/skills" element={<Skills />} />
           <Route path="/groups" element={<StudyGroups />} />
@@ -49,7 +58,9 @@ function App() {
           <Route path="/sports" element={<Sports />} />
         </Route>
       </Routes>
-    </Router>
+      </Router>
+      </ConfirmProvider>
+    </ToastProvider>
   );
 }
 

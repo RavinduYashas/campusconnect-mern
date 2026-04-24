@@ -1,9 +1,7 @@
 .clubs-page { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
 
 .clubs-hero {
-  background: linear-gradient(180deg, rgba(237,249,255,1) 0%, rgba(244,248,252,1) 100%);
   border-radius: 18px;
-  padding: 2rem 0;
   margin-bottom: 1rem;
 }
 

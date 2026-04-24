@@ -31,6 +31,10 @@ const userSchema = new mongoose.Schema({
     required: true,
     default: "student"
   },
+  isBatchRep: {
+    type: Boolean,
+    default: false
+  },
   registerNumber: String,
   field: String,
   // ===== Profile Data =====
@@ -56,11 +60,27 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  joinedGroups: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Group'
+  }],
   // ===== Security / Login =====
   mustChangePassword: {
     type: Boolean,
     default: function () {
       return this.role === "expert"; // force change for newly created experts
+    }
+  },
+  banStatus: {
+    isBanned: {
+      type: Boolean,
+      default: false
+    },
+    bannedUntil: {
+      type: Date
+    },
+    banReason: {
+      type: String
     }
   }
 }, {
