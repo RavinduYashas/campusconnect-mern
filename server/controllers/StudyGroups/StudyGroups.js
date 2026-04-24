@@ -1,8 +1,6 @@
 const StudyGroup = require('../../models/StudyGroups/StudyGroups');
 const User = require('../../models/User');
 
-// ========== GROUP MANAGEMENT FUNCTIONS ==========
-
 // @desc    Create a new study group
 // @route   POST /api/study-groups
 // @access  Private
@@ -439,8 +437,7 @@ const getStudyGroupDetails = async (req, res) => {
       .populate('members.user', 'name avatar')
       .populate('studyMaterials.uploadedBy', 'name avatar')
       .populate('studySessions.createdBy', 'name avatar')
-      .populate('messages.user', 'name avatar')
-      .populate('sessionRequests.requestedBy', 'name avatar');
+      .populate('messages.user', 'name avatar');
 
     if (!studyGroup) {
       return res.status(404).json({ message: 'Study group not found' });
@@ -464,9 +461,7 @@ const getStudyGroupDetails = async (req, res) => {
   }
 };
 
-// ========== STUDY MATERIALS FUNCTIONS ==========
-
-// @desc    Upload study material (with file upload)
+// @desc    Add study material to group
 // @route   POST /api/study-groups/:groupId/materials
 // @access  Private
 const uploadStudyMaterial = async (req, res) => {
@@ -552,7 +547,7 @@ const addStudyMaterial = async (req, res) => {
       material: studyGroup.studyMaterials[studyGroup.studyMaterials.length - 1] 
     });
   } catch (error) {
-    console.error('Error adding study material:', error);
+    console.error('❌ Error adding study material:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -591,12 +586,10 @@ const deleteStudyMaterial = async (req, res) => {
 
     res.json({ message: 'Study material deleted successfully' });
   } catch (error) {
-    console.error('Error deleting study material:', error);
+    console.error('❌ Error deleting study material:', error);
     res.status(500).json({ message: error.message });
   }
 };
-
-// ========== STUDY SESSIONS FUNCTIONS ==========
 
 // @desc    Add study session
 // @route   POST /api/study-groups/:groupId/sessions
@@ -623,8 +616,8 @@ const addStudySession = async (req, res) => {
       title,
       description,
       date: new Date(date),
-      duration: duration || 60,
-      location: location || '',
+      duration,
+      location,
       resources: resources || [],
       createdBy: req.user.id
     });
@@ -635,7 +628,7 @@ const addStudySession = async (req, res) => {
       session: studyGroup.studySessions[studyGroup.studySessions.length - 1] 
     });
   } catch (error) {
-    console.error('Error adding study session:', error);
+    console.error('❌ Error adding study session:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -674,7 +667,7 @@ const deleteStudySession = async (req, res) => {
 
     res.json({ message: 'Study session deleted successfully' });
   } catch (error) {
-    console.error('Error deleting study session:', error);
+    console.error('❌ Error deleting study session:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -869,7 +862,7 @@ const sendMessage = async (req, res) => {
     const newMessage = studyGroup.messages[studyGroup.messages.length - 1];
     res.status(201).json(newMessage);
   } catch (error) {
-    console.error('Error sending message:', error);
+    console.error('❌ Error sending message:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -896,7 +889,7 @@ const getMessages = async (req, res) => {
 
     res.json(studyGroup.messages);
   } catch (error) {
-    console.error('Error getting messages:', error);
+    console.error('❌ Error getting messages:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -910,8 +903,6 @@ const addMeeting = async (req, res) => {
 const addSession = async (req, res) => {
   res.json({ message: 'Add session - use study sessions instead' });
 };
-
-// ========== EXPORT ALL FUNCTIONS ==========
 
 module.exports = {
   createStudyGroup,

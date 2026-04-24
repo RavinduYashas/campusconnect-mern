@@ -31,7 +31,7 @@ const Footer = () => {
             <div className="container mx-auto px-6 relative z-10">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
                     {/* Column 1: Brand */}
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
@@ -45,9 +45,9 @@ const Footer = () => {
                         </p>
                         <div className="flex space-x-4">
                             {socialIcons.map(social => (
-                                <a 
-                                    key={social.name} 
-                                    href={social.url} 
+                                <a
+                                    key={social.name}
+                                    href={social.url}
                                     className="h-10 w-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 hover:bg-primary-light hover:border-primary-light transition-all duration-300 group"
                                     aria-label={social.name}
                                 >
@@ -58,7 +58,7 @@ const Footer = () => {
                     </motion.div>
 
                     {/* Column 2: Quick Links */}
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
@@ -68,8 +68,8 @@ const Footer = () => {
                         <ul className="space-y-3">
                             {footerLinks.map(link => (
                                 <li key={link.name}>
-                                    <Link 
-                                        to={link.path} 
+                                    <Link
+                                        to={link.path}
                                         className="text-gray-400 hover:text-white hover:translate-x-1 inline-block transition-all duration-200"
                                     >
                                         {link.name}
@@ -80,7 +80,7 @@ const Footer = () => {
                     </motion.div>
 
                     {/* Column 3: Interactive Calendar */}
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         whileInView={{ opacity: 1, scale: 1 }}
                         viewport={{ once: true }}
@@ -92,7 +92,7 @@ const Footer = () => {
                     </motion.div>
 
                     {/* Column 4: Contact */}
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
