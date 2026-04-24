@@ -7,14 +7,6 @@ const seedGroups = require('./config/seedGroups');
 
 dotenv.config();
 
-// Connect to Database
-connectDB().then(() => {
-    // Create Default Admin
-    createAdmin();
-    // Seed Q&A Groups
-    seedGroups();
-});
-
 const http = require('http');
 const { Server } = require('socket.io');
 
@@ -88,6 +80,9 @@ app.use('/api/notifications', require('./routes/QA/notificationRoutes'));
 app.use('/api/study-groups', require('./routes/StudyGroups/StudyGroups'));
 app.use('/api/workshops', require('./routes/Workshops/Workshops'));
 app.use('/api/study-buddy', require('./routes/StudyGroups/StudyBuddyRoutes'));
+app.use('/api/peer-skills', require('./routes/peer-skill-exchange/skillRoutes'));
+app.use('/api/skills', require('./routes/SkillExchange/skillRoutes'));
+
 
 // ========== DEBUG ROUTES ==========
 app.get('/api/test', (req, res) => {
@@ -103,6 +98,10 @@ app.use('/api', (req, res) => {
 const listRoutes = () => {
     try {
         const routes = [];
+        if (!app._router || !app._router.stack) {
+            console.log('Router not fully initialized yet.');
+            return;
+        }
         app._router.stack.forEach((middleware) => {
             if (middleware.route) {
                 const methods = Object.keys(middleware.route.methods).join(',').toUpperCase();
@@ -143,8 +142,6 @@ connectDB().then(() => {
     createAdmin();
     seedGroups();
 
-    // REMOVED DUPLICATE ROUTE REGISTRATIONS HERE
-    
     // Server listening - ONLY ONCE
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
@@ -155,12 +152,3 @@ connectDB().then(() => {
     console.error('Failed to connect to MongoDB:', err.message);
     process.exit(1);
 });
-// Define Routes
-app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/qa', require('./routes/QA/qaRoutes'));
-app.use('/api/notifications', require('./routes/QA/notificationRoutes')); // Add notification routes
-app.use('/api/peer-skills', require('./routes/peer-skill-exchange/skillRoutes')); // Peer Skill Exchange Routes
-
-const PORT = process.env.PORT || 5000;
-
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

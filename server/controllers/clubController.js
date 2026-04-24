@@ -1,5 +1,5 @@
-const Club = require('../models/Club');
-const ClubRequest = require('../models/ClubRequest');
+const Club = require('../models/SportsandClubs/Club');
+const ClubRequest = require('../models/SportsandClubs/ClubRequest');
 
 // @desc    Create a club
 // @route   POST /api/clubs
@@ -390,7 +390,7 @@ const cancelRequest = async (req, res) => {
 
         // If waitlisted, remove the user from the club waitlist
         if (request.status === 'waitlisted') {
-            const Club = require('../models/Club');
+            const Club = require('../models/SportsandClubs/Club');
             await Club.findByIdAndUpdate(request.club, { $pull: { waitlist: request.user } });
         }
 
@@ -623,7 +623,7 @@ const toggleClubRsvp = async (req, res) => {
         
         // Ensure user is a member, admin, or creator
         const userId = req.user._id.toString();
-        const ClubRequest = require('../models/ClubRequest');
+        const ClubRequest = require('../models/SportsandClubs/ClubRequest');
         const isMember = club.members && club.members.map(m => m.toString()).includes(userId);
         const isAdmin = req.user.role === 'admin';
         const isCreator = club.createdBy && club.createdBy.toString() === userId;
