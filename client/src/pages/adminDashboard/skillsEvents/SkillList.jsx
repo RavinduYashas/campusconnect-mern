@@ -28,31 +28,94 @@ const SkillList = () => {
     const fetchSkills = async () => {
         try {
             setLoading(true);
-            const res = await axios.get('http://localhost:5000/api/peer-skills');
-            setSkills(res.data);
+            const token = localStorage.getItem('token') || currentUser?.token;
+            const headers = { Authorization: `Bearer ${token}` };
+
+            // Fetch from both systems in parallel
+            const [peerRes, reqRes, offerRes] = await Promise.all([
+                axios.get('http://localhost:5000/api/peer-skills'),
+                axios.get('http://localhost:5000/api/skills/requests', { headers }),
+                axios.get('http://localhost:5000/api/skills/offers', { headers })
+            ]).catch(err => {
+                console.error("Partial fetch error:", err);
+                return [ { data: [] }, { data: [] }, { data: [] } ];
+            });
+
+            // Map and unify data structure
+            const peerSkills = (peerRes.data || []).map(skill => ({
+                ...skill,
+                source: 'peer-skills'
+            }));
+
+            const requests = (reqRes.data || []).map(req => ({
+                _id: req._id,
+                title: req.title,
+                type: 'request',
+                category: req.skillsNeeded ? req.skillsNeeded.join(', ') : 'N/A',
+                description: req.description,
+                createdBy: {
+                    firstName: req.requestedBy?.name?.split(' ')[0] || 'Unknown',
+                    lastName: req.requestedBy?.name?.split(' ').slice(1).join(' ') || '',
+                    profilePicture: req.requestedBy?.avatar ? (req.requestedBy.avatar.startsWith('avatars/') ? `/${req.requestedBy.avatar}` : `/avatars/${req.requestedBy.avatar}`) : null,
+                    email: req.requestedBy?.email
+                },
+                source: 'skills-requests'
+            }));
+
+            const offers = (offerRes.data || []).map(offer => ({
+                _id: offer._id,
+                title: offer.title,
+                type: 'offer',
+                category: offer.skillsOffered ? offer.skillsOffered.join(', ') : 'N/A',
+                description: offer.description,
+                createdBy: {
+                    firstName: offer.publishedBy?.name?.split(' ')[0] || 'Unknown',
+                    lastName: offer.publishedBy?.name?.split(' ').slice(1).join(' ') || '',
+                    profilePicture: offer.publishedBy?.avatar ? (offer.publishedBy.avatar.startsWith('avatars/') ? `/${offer.publishedBy.avatar}` : `/avatars/${offer.publishedBy.avatar}`) : null,
+                    email: offer.publishedBy?.email
+                },
+                source: 'skills-offers'
+            }));
+
+            setSkills([...peerSkills, ...requests, ...offers]);
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to fetch skills');
+            console.error("Consolidated fetch error:", err);
+            setError('Failed to fetch some skills. Please check if both systems are running.');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (skill) => {
         if (window.confirm('Are you sure you want to delete this listing?')) {
             try {
                 const token = localStorage.getItem('token') || currentUser?.token;
-                await axios.delete(`http://localhost:5000/api/peer-skills/${id}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setSkills(skills.filter(skill => skill._id !== id));
+                const headers = { Authorization: `Bearer ${token}` };
+                let url = '';
+                
+                if (skill.source === 'peer-skills') {
+                    url = `http://localhost:5000/api/peer-skills/${skill._id}`;
+                } else if (skill.source === 'skills-requests') {
+                    url = `http://localhost:5000/api/skills/requests/${skill._id}`;
+                } else if (skill.source === 'skills-offers') {
+                    url = `http://localhost:5000/api/skills/offers/${skill._id}`;
+                }
+
+                await axios.delete(url, { headers });
+                setSkills(skills.filter(s => s._id !== skill._id));
             } catch (err) {
                 alert(err.response?.data?.message || 'Failed to delete listing');
             }
         }
     };
 
-    const handleEdit = (id) => {
-        navigate(`/skills/edit/${id}`);
+    const handleEdit = (skill) => {
+        if (skill.source === 'peer-skills') {
+            navigate(`/skills/edit/${skill._id}`);
+        } else {
+            // For the other system, we redirect to the main skills page where they can be edited
+            navigate('/skills');
+        }
     };
 
     const handleCreate = () => {
@@ -233,7 +296,11 @@ const SkillList = () => {
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm overflow-hidden">
                                                     {skill.createdBy?.profilePicture ? (
-                                                        <img src={`http://localhost:5000${skill.createdBy.profilePicture}`} alt="profile" className="w-full h-full object-cover" />
+                                                        <img 
+                                                            src={skill.createdBy.profilePicture.startsWith('http') ? skill.createdBy.profilePicture : `http://localhost:5000${skill.createdBy.profilePicture}`} 
+                                                            alt="profile" 
+                                                            className="w-full h-full object-cover" 
+                                                        />
                                                     ) : (
                                                         skill.createdBy?.firstName?.charAt(0) || 'U'
                                                     )}
@@ -246,13 +313,13 @@ const SkillList = () => {
                                         <td className="px-8 py-5">
                                             <div className="flex gap-4 opacity-0 group-hover:opacity-100 transition-opacity text-sm">
                                                 <button
-                                                    onClick={() => handleEdit(skill._id)}
+                                                    onClick={() => handleEdit(skill)}
                                                     className="text-primary hover:text-primary-dark font-bold uppercase tracking-wider transition-colors"
                                                 >
                                                     Edit
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDelete(skill._id)}
+                                                    onClick={() => handleDelete(skill)}
                                                     className="text-error/60 hover:text-error font-bold uppercase tracking-wider transition-colors"
                                                 >
                                                     Remove
