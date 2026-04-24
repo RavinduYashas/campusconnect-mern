@@ -27,6 +27,13 @@ import SportsTeamList from './pages/adminDashboard/sports/SportsTeamList';
 // import CreateSkill from './pages/CreateSkill';
 import AdminLayout from './components/admin/AdminLayout';
 import ClientLayout from './components/ClientLayout';
+import BatchRepManagement from './pages/adminDashboard/BatchRepManagement';
+import BatchRepDashboard from './pages/BatchRepDashboard';
+import WorkshopDetails from './pages/Workshops/WorkshopDetails';
+import AdminWorkshops from './pages/Workshops/AdminWorkshops';
+import AdminStudyGroups from './pages/StudyGroups/AdminStudyGroups';
+
+
 
 function App() {
   return (
@@ -62,17 +69,21 @@ function App() {
           <Route path="/profile/:id" element={<ProfileView />} />
           <Route path="/qa" element={<QA />} />
           <Route path="/skills" element={<Skills />} />
-<<<<<<< HEAD
           <Route path="/skills/create" element={<CreateSkill />} />
           <Route path="/skills/:id" element={<SkillDetails />} />
           <Route path="/skills/edit/:id" element={<CreateSkill />} />
-=======
-          <Route path="/create-skill" element={<CreateSkill />} />
-          <Route path="/edit-skill/:id" element={<CreateSkill />} />
->>>>>>> 9b0a3de (feat: complete peer skill exchange and admin dashboard, security: untrack .env)
           <Route path="/groups" element={<StudyGroups />} />
           <Route path="/clubs" element={<Clubs />} />
           <Route path="/sports" element={<Sports />} />
+          <Route path="/workshops" element={<Workshops />} />
+          <Route path="batch-reps" element={<BatchRepManagement />} />
+          <Route path="/batch-rep-dashboard" element={<BatchRepDashboard />} />
+          <Route path="/workshops/:id" element={<WorkshopDetails />} />
+          <Route path="/Workshops/AdminWorkshops" element={<AdminWorkshops />} />
+          <Route path="/StudyGroups/AdminStudyGroups" element={<AdminStudyGroups />} />
+
+
+
         </Route>
       </Routes>
     </Router>
