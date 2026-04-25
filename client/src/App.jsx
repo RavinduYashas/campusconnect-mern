@@ -25,6 +25,7 @@ import SkillForm from './pages/adminDashboard/skillsEvents/SkillForm';
 import StudyGroupList from './pages/adminDashboard/studyGroupsWorkshops/StudyGroupList';
 import ClubList from './pages/adminDashboard/clubs/ClubList';
 import SportsTeamList from './pages/adminDashboard/sports/SportsTeamList';
+import AllMembers from './pages/adminDashboard/AllMembers';
 // import CreateSkill from './pages/CreateSkill';
 import AdminLayout from './components/admin/AdminLayout';
 import ClientLayout from './components/ClientLayout';
@@ -57,6 +58,7 @@ function App() {
           <Route path="clubs" element={<ClubList />} />
           <Route path="sports" element={<SportsTeamList />} />
           <Route path="users" element={<ManageUsers />} />
+          <Route path="all-members" element={<AllMembers />} />
           <Route path="moderation" element={<div className="text-center py-20 text-text-secondary">Moderation Module Coming Soon</div>} />
           <Route path="settings" element={<div className="text-center py-20 text-text-secondary">System Settings Coming Soon</div>} />
         </Route>

@@ -20,6 +20,8 @@ const {
     getAllQuestions,
     getAllAnswers,
     getAllGroupsAdmin,
+    createGroupAdmin,
+    deleteGroupAdmin,
     getGroupByIdAdmin,
     getQuestionDetailAdmin,
     adminRemoveMemberFromGroup,
@@ -38,7 +40,9 @@ router.get("/admin/questions", roleAuthorize("admin"), getAllQuestions);
 router.get("/admin/questions/:id", roleAuthorize("admin"), getQuestionDetailAdmin);
 router.get("/admin/answers", roleAuthorize("admin"), getAllAnswers);
 router.get("/admin/groups", roleAuthorize("admin"), getAllGroupsAdmin);
+router.post("/admin/groups", roleAuthorize("admin"), createGroupAdmin);
 router.get("/admin/groups/:id", roleAuthorize("admin"), getGroupByIdAdmin);
+router.delete("/admin/groups/:id", roleAuthorize("admin"), deleteGroupAdmin);
 router.post("/admin/groups/:groupId/members/:userId/remove", roleAuthorize("admin"), adminRemoveMemberFromGroup);
 router.post("/admin/members/:userId/ban", roleAuthorize("admin"), adminBanUser);
 router.post("/admin/members/:userId/unban", roleAuthorize("admin"), adminUnbanUser);

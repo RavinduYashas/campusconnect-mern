@@ -622,6 +622,56 @@ exports.getAllGroupsAdmin = async (req, res) => {
     }
 };
 
+// @desc    Create a new group (Admin)
+// @route   POST /api/qa/admin/groups
+// @access  Private (Admin)
+exports.createGroupAdmin = async (req, res) => {
+    try {
+        const { name, description } = req.body;
+        
+        if (!name) {
+            return res.status(400).json({ message: "Group name is required" });
+        }
+
+        const existingGroup = await Group.findOne({ name });
+        if (existingGroup) {
+            return res.status(400).json({ message: "Group with this name already exists" });
+        }
+
+        const group = await Group.create({
+            name,
+            description
+        });
+
+        res.status(201).json(group);
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+// @desc    Delete a group (Admin)
+// @route   DELETE /api/qa/admin/groups/:id
+// @access  Private (Admin)
+exports.deleteGroupAdmin = async (req, res) => {
+    try {
+        const group = await Group.findById(req.params.id);
+        if (!group) return res.status(404).json({ message: "Group not found" });
+
+        // Optionally, you could also delete all associated questions and answers
+        // await Question.deleteMany({ group: group._id });
+        // Make sure to remove the group from users' joinedGroups if necessary
+        await User.updateMany(
+            { joinedGroups: group._id },
+            { $pull: { joinedGroups: group._id } }
+        );
+
+        await Group.findByIdAndDelete(req.params.id);
+        res.json({ message: "Group deleted successfully", groupId: req.params.id });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
 // @desc    Get group by ID (Admin)
 // @route   GET /api/qa/admin/groups/:id
 // @access  Private (Admin)
